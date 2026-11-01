@@ -190,12 +190,13 @@ author-deleted post; topic 13 has a moderator-deleted spam post; topic 8 is a re
 ## Visual design
 
 Navy top bar and footer with a green rule, the Interstate-72 shield as the logo, section
-headers drawn as green guide signs (white inset border, condensed capitals), green primary
-buttons with the same inset line, yellow pinned markers, coloured category badges. System
+headers drawn as green guide signs (white inset border, condensed capitals), flat green primary
+buttons, yellow pinned markers, coloured category badges. System
 fonts; code in monospace with ligatures off so `<-` stays `<-`. Light and dark follow
 `prefers-color-scheme`. Layout is mobile-first: at 390 px the header is two rows (brand and
 account, then nav and search), category and topic rows stack their counts, and post bodies use
-the full card width. Focus is a 3 px highway-yellow outline; every icon has a text
+the full card width. Focus is a 3 px highway-yellow outline (darkened to amber on the light
+theme so it keeps 3:1 against the page); every icon has a text
 alternative; navigation uses `aria-current`, the PLEASE button `aria-pressed`. The page
 works without JavaScript and without inline scripts (the runtime's CSP forbids them).
 

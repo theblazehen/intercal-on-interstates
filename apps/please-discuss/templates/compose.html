@@ -69,18 +69,18 @@
 {{ABSTAIN WITHOUT ,135 IS #1}}
     <div class="field">
       <label for="c-title">Title</label>
-      <input id="c-title" name="title" type="text" value="{{,141}}" autocomplete="off" placeholder="What is this topic about?">
-      <p class="field-hint">Up to 120 bytes.</p>
+      <input id="c-title" name="title" type="text" value="{{,141}}" autocomplete="off" placeholder="What is this topic about?" aria-describedby="c-title-hint">
+      <p class="field-hint" id="c-title-hint">Up to 120 bytes.</p>
     </div>
 {{REINSTATE}}
     <div class="field">
       <label for="c-body">{{ABSTAIN WITHOUT ,144 IS #1}}First post{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #2}}Your reply{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #3}}Post{{REINSTATE}}</label>
-      <textarea id="c-body" name="body" rows="14">{{ABSTAIN WITHOUT ,137}}[quote="{{,137}}"]
+      <textarea id="c-body" name="body" rows="14" aria-describedby="c-body-hint">{{ABSTAIN WITHOUT ,137}}[quote="{{,137}}"]
 {{,136}}
 [/quote]
 
 {{REINSTATE}}{{,140}}</textarea>
-      <p class="field-hint">Markdown: **bold**, *italic*, `code`, ``` fenced blocks, &gt; quotes, lists, links. phpBB-style [quote="name"]…[/quote] and @name mentions work too. Up to 20 000 bytes.</p>
+      <p class="field-hint" id="c-body-hint">Markdown: **bold**, *italic*, `code`, ``` fenced blocks, &gt; quotes, lists, links. phpBB-style [quote="name"]…[/quote] and @name mentions work too. Up to 20 000 bytes.</p>
     </div>
     <div class="composer-bar">
       <button class="btn btn-go" type="submit">{{ABSTAIN WITHOUT ,144 IS #1}}Create topic{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #2}}Post reply{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #3}}Save changes{{REINSTATE}}</button>

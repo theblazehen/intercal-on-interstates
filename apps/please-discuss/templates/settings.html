@@ -27,8 +27,8 @@
   <form class="composer composer-full" action="/settings" method="post">
     <div class="field">
       <label for="s-bio">Bio</label>
-      <textarea id="s-bio" name="bio" rows="8">{{,144}}</textarea>
-      <p class="field-hint">Up to 2 000 bytes. Leave empty to ABSTAIN FROM having one.</p>
+      <textarea id="s-bio" name="bio" rows="8" aria-describedby="s-bio-hint">{{,144}}</textarea>
+      <p class="field-hint" id="s-bio-hint">Up to 2 000 bytes. Leave empty to ABSTAIN FROM having one.</p>
     </div>
     <div class="composer-bar">
       <button class="btn btn-go" type="submit">Save bio</button>

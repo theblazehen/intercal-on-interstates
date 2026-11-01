@@ -139,11 +139,11 @@
     <form class="composer" action="/t/{{,144}}/reply" method="post">
       <div class="composer-who"><span class="face face-s">{{,100 AS FACE}}</span> <span>Replying as <strong>{{,100}}</strong></span></div>
       <label class="vh" for="reply-body">Your reply</label>
-      <textarea id="reply-body" name="body" rows="7" placeholder="PLEASE write something. Markdown, [quote] and @mentions work."></textarea>
+      <textarea id="reply-body" name="body" rows="7" placeholder="PLEASE write something. Markdown, [quote] and @mentions work." aria-describedby="reply-hint"></textarea>
       <div class="composer-bar">
         <button class="btn btn-go" type="submit">Post reply</button>
         <button class="btn" type="submit" name="preview" value="1">Preview</button>
-        <span class="hint">**bold**, *italic*, `code`, ``` fences, &gt; quotes, [quote="name"]…[/quote], @name</span>
+        <span class="hint" id="reply-hint">**bold**, *italic*, `code`, ``` fences, &gt; quotes, [quote="name"]…[/quote], @name</span>
       </div>
     </form>
 {{REINSTATE}}
