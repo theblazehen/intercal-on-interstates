@@ -45,12 +45,14 @@ void ioi_hex(const uint8_t *in, size_t len, char *out /* 2*len+1 */);
 
 /* Password hashing: "pbkdf2-sha256$ITER$SALTHEX$HASHHEX". */
 #define IOI_PBKDF2_PREFIX "pbkdf2-sha256$"
-#define IOI_PBKDF2_ITERATIONS 20000u
+#define IOI_PBKDF2_ITERATIONS 80000u
 /* Returns a malloc'd NUL-terminated string, or NULL when no randomness. */
 char *ioi_password_hash(const void *pw, size_t len);
 /* 1 when PW matches STORED (a well-formed hash string). */
 int ioi_password_verify(const void *pw, size_t len, const void *stored, size_t storedlen);
 int ioi_password_is_hash(const void *s, size_t len);
+/* A well-formed hash that matches no password, for constant-time misses. */
+const char *ioi_password_dummy(void);
 
 /* ---- request helpers ---- */
 /* Decode application/x-www-form-urlencoded bytes ('+' -> space, %XX).
@@ -63,17 +65,26 @@ int ioi_form_lookup(const char *qs, size_t qslen, const char *name,
 char *ioi_cookie_lookup(const char *header, const char *name);
 /* Same-origin rule on explicit headers. */
 int ioi_same_origin_check(const char *host, const char *origin, const char *referer);
+/* Is HOST on the comma-separated allow-list (IOI_HOSTS)? An entry without
+ * a port allows any port. */
+int ioi_host_allowed(const char *list, const char *host);
 /* Reset all request/response/session state (tests run several requests in
  * one process). Does not touch the database. */
 void ioi_web_reset(void);
 
 /* ---- sessions ---- */
-/* Cookie value for VALUE issued at NOW, signed with SECRET. Malloc'd. */
-char *ioi_session_encode(uint32_t value, uint32_t now, const char *secret);
-/* 1 and *value when COOKIE is valid for SECRET at NOW. */
-int ioi_session_decode(const char *cookie, uint32_t now, const char *secret, uint32_t *value);
+/* The cookie is "<id>.<mac>": a random 128-bit id (32 hex digits) and
+ * HMAC-SHA256(IOI_SECRET, id) in hex. The value lives server-side in the
+ * ioi_sessions table under SHA-256(id). */
 #define IOI_SESSION_COOKIE "ioi_session"
+#define IOI_SESSION_COOKIE_SECURE "__Host-ioi_session"
 #define IOI_SESSION_MAX_AGE 2592000u
+/* Cookie value for ID (32 hex digits) signed with SECRET. Malloc'd. */
+char *ioi_session_sign(const char *id, const char *secret);
+/* 1 and the id (33 bytes) when COOKIE carries a valid signature. */
+int ioi_session_check(const char *cookie, const char *secret, char id[33]);
+/* 1 when cookies should be Secure (IOI_SECURE_COOKIES=1 or HTTPS=on). */
+int ioi_session_secure(void);
 
 /* ---- rendering ---- */
 void ioi_prose_render(struct ioi_buf *out, const char *src, size_t len);
@@ -90,5 +101,9 @@ void ioi_face_render(struct ioi_buf *out, const char *name, size_t len);
 /* ---- database ---- */
 /* Close the database (also registered with atexit). */
 void ioi_db_close(void);
+/* ioi_sessions access by key (hex SHA-256 of the session id). */
+int ioi_db_session_get(const char *key, uint32_t now, uint32_t *value);
+int ioi_db_session_put(const char *key, uint32_t value, uint32_t now, uint32_t expires);
+int ioi_db_session_delete(const char *key);
 
 #endif

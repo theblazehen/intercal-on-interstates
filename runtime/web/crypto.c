@@ -332,3 +332,17 @@ int ioi_password_verify(const void *pw, size_t len, const void *stored, size_t s
     ioi_pbkdf2_sha256(pw, len, salt, sl, it, got, dl);
     return ioi_ct_equal(got, dk, dl);
 }
+
+const char *ioi_password_dummy(void)
+{
+    static char dummy[160];
+    if (!dummy[0]) {
+        char salt[2 * SALT_LEN + 1], dk[2 * HASH_LEN + 1];
+        memset(salt, '0', sizeof salt - 1);
+        salt[sizeof salt - 1] = 0;
+        memset(dk, '0', sizeof dk - 1);
+        dk[sizeof dk - 1] = 0;
+        snprintf(dummy, sizeof dummy, IOI_PBKDF2_PREFIX "%u$%s$%s", IOI_PBKDF2_ITERATIONS, salt, dk);
+    }
+    return dummy;
+}

@@ -1,7 +1,7 @@
 # gross — the General READ OUT Server System
 
 ```
-gross [-p PORT] [-d PUBLIC_DIR] [-b ADDRESS] [-t SECONDS] ./prog
+gross [-p PORT] [-d PUBLIC_DIR] [-b ADDRESS] [-t SECONDS] [-c N] [-l SECONDS] ./prog
 ```
 
 | Option | Default | |
@@ -9,12 +9,18 @@ gross [-p PORT] [-d PUBLIC_DIR] [-b ADDRESS] [-t SECONDS] ./prog
 | `-p` | 10585 | listen port |
 | `-d` | `./public` | served at `/public/...` |
 | `-b` | all interfaces (`::` dual-stack, else `0.0.0.0`) | bind address (extra; tests use `127.0.0.1`) |
-| `-t` | 10 | per-request time limit in seconds (extra; tests use 2) |
+| `-t` | 10 | per-request time limit in seconds for the body and the program (extra; tests use 2) |
+| `-c` | 16 | connections at once from one client address; 0 = no limit (extra). Behind a reverse proxy every client shares the proxy's address: raise it or use 0 |
+| `-l` | 60 | connection lifetime in seconds: no new request starts on an older keep-alive connection (extra) |
+| `IOI_HOSTS` | unset | comma-separated `host` / `host:port` allow-list for the `Host` header (a bare host allows any port); others get 421. Also passed to the program, whose same-origin check applies it |
 
 One process is forked per connection; it serves requests on that connection
-with HTTP/1.1 keep-alive (5 s idle, at most 1000 requests) and pipelining.
-HTTP/1.0 closes unless the client asks for keep-alive. At most 256
-connections at once; beyond that clients get `503` with `Retry-After: 1`.
+with HTTP/1.1 keep-alive and pipelining. The first byte and the whole request
+head must arrive within 5 s (or `-t`, if shorter) whatever `-t` says; idle
+keep-alive connections are closed after 5 s, after 1000 requests, or once
+they are older than `-l`. HTTP/1.0 closes unless the client asks for
+keep-alive. At most 256 connections at once (beyond that: `503`) and `-c`
+per client address (beyond that: `429`), both with `Retry-After: 1`.
 SIGINT/SIGTERM stop the server and its connection processes.
 
 ## Requests
@@ -51,9 +57,11 @@ SIGINT/SIGTERM stop the server and its connection processes.
 
 | Status | When | Text |
 |---|---|---|
-| 400 | malformed request line or header, bad escapes, missing `Host` on 1.1, conflicting `Content-Length`, `Content-Length` with `Transfer-Encoding` | `ICL017I DO YOU EXPECT ME TO FIGURE THIS OUT?` |
-| 408 | request head or body not complete within the time limit | `ICL408I YOU TOOK TOO LONG TO SAY THAT` |
-| 413 | body over 1 MiB (refused before reading when `Content-Length` says so) | `ICL413I THAT BODY IS TOO HEAVY TO WRITE IN` |
+| 400 | malformed request line or header, bad escapes, missing `Host` on 1.1, conflicting `Content-Length`, `Content-Length` with `Transfer-Encoding`, a chunk-size line that is not exactly 1–8 hex digits (optionally `;extension`) and CRLF, chunk data not followed by CRLF | `ICL017I DO YOU EXPECT ME TO FIGURE THIS OUT?` |
+| 408 | request head not complete within 5 s (or `-t`), or body within `-t` | `ICL408I YOU TOOK TOO LONG TO SAY THAT` |
+| 413 | body over 1 MiB (refused before reading when `Content-Length` says so; chunked bodies are checked chunk by chunk without overflow) | `ICL413I THAT BODY IS TOO HEAVY TO WRITE IN` |
+| 421 | `IOI_HOSTS` is set and the `Host` header is not on it | `ICL421I THIS SERVER DOES NOT ANSWER TO THAT NAME` |
+| 429 | more than `-c` connections from one address | `ICL429I YOU ARE ALREADY COMING FROM HERE TOO MANY TIMES` |
 | 431 | request head over 16 KiB or over 100 headers | `ICL431I YOUR HEADERS ARE LONGER THAN MY PATIENCE` |
 | 500 | the program could not be started | `ICL500I THE PROGRAM REFUSED TO BE STARTED` |
 | 501 | a transfer coding other than `chunked` | `ICL501I I DO NOT KNOW HOW TO UNPACK THAT` |

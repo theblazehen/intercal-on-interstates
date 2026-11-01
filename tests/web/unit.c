@@ -226,28 +226,134 @@ static void test_routes(void)
     CHECK(!ioi_same_origin_check("example.org", NULL, "javascript://example.org/"));
     CHECK(!ioi_same_origin_check("example.org", NULL, "http://evil.org/@example.org"));
     CHECK(!ioi_same_origin_check(NULL, "http://example.org", NULL));
+
+    CHECK(ioi_host_allowed("example.org", "example.org"));
+    CHECK(ioi_host_allowed("example.org", "EXAMPLE.org:8080"));
+    CHECK(ioi_host_allowed("a.test, example.org:443", "example.org:443"));
+    CHECK(!ioi_host_allowed("example.org:443", "example.org:80"));
+    CHECK(!ioi_host_allowed("example.org", "example.org.evil.test"));
+    CHECK(!ioi_host_allowed("example.org", "evil.test"));
+    CHECK(!ioi_host_allowed("example.org", ""));
+    CHECK(!ioi_host_allowed("example.org", NULL));
+    CHECK(ioi_host_allowed("[::1]", "[::1]:10585"));
 }
 
 /* ---------------------------------------------------------------- */
 
 static void test_session(void)
 {
-    char *c = ioi_session_encode(7, 1000000, "s3cret");
-    uint32_t v = 0;
-    CHECK(ioi_session_decode(c, 1000060, "s3cret", &v) && v == 7);
-    CHECK(!ioi_session_decode(c, 1000060, "other", &v));
-    CHECK(!ioi_session_decode(c, 1000000 + IOI_SESSION_MAX_AGE, "s3cret", &v));
-    CHECK(!ioi_session_decode(c, 0, "s3cret", &v)); /* issued in the future */
+    const char *id = "0123456789abcdef0123456789abcdef";
+    char got[33];
+    char *c = ioi_session_sign(id, "s3cret");
+    CHECK(strlen(c) == 97 && c[32] == '.');
+    CHECK(ioi_session_check(c, "s3cret", got) && !strcmp(got, id));
+    CHECK(!ioi_session_check(c, "other", got));
+    CHECK(!ioi_session_check(c, "", got));
     char *t = strdup(c);
-    t[3] = '8'; /* value 7 -> 8, MAC unchanged */
-    CHECK(!ioi_session_decode(t, 1000060, "s3cret", &v));
+    t[0] = '1'; /* another id, same MAC */
+    CHECK(!ioi_session_check(t, "s3cret", got));
     strcpy(t, c);
     t[strlen(t) - 1] ^= 1;
-    CHECK(!ioi_session_decode(t, 1000060, "s3cret", &v));
-    CHECK(!ioi_session_decode("v1.7.1000000", 1000060, "s3cret", &v));
-    CHECK(!ioi_session_decode(c, 1000060, "", &v));
+    CHECK(!ioi_session_check(t, "s3cret", got));
+    CHECK(!ioi_session_check("v1.7.1000000.abc", "s3cret", got));
+    CHECK(!ioi_session_check(id, "s3cret", got));
     free(t);
     free(c);
+
+    const char *d = ioi_password_dummy();
+    CHECK(ioi_password_is_hash(d, strlen(d)));
+    CHECK(!ioi_password_verify("", 0, d, strlen(d)));
+    CHECK(!ioi_password_verify("00000000", 8, d, strlen(d)));
+}
+
+/* Server-side sessions against the test database (run after test_db). */
+static char cookie_from_header[256];
+
+static void capture_cookie(void)
+{
+    const char *h = ioi_session_header();
+    cookie_from_header[0] = 0;
+    if (h) {
+        size_t n = strcspn(h, ";");
+        snprintf(cookie_from_header, sizeof cookie_from_header, "%.*s", (int)n, h);
+    }
+}
+
+static void test_session_store(void)
+{
+    setenv("IOI_SECRET", "unit-secret", 1);
+    unsetenv("HTTP_COOKIE");
+    ioi_web_reset();
+    CHECK(ioi_web_session_get() == 0);
+    CHECK(ioi_web_session_set(7) == 0 && ioi_web_session_get() == 7);
+    capture_cookie();
+    CHECK(!strncmp(cookie_from_header, "ioi_session=", 12));
+    CHECK(strstr(ioi_session_header(), "; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000") != NULL);
+    char first[256];
+    strcpy(first, cookie_from_header);
+
+    /* the next request presents the cookie */
+    ioi_web_reset();
+    setenv("HTTP_COOKIE", first, 1);
+    CHECK(ioi_web_session_get() == 7);
+    /* a new value issues a new id; the old cookie stops working */
+    CHECK(ioi_web_session_set(9) == 0);
+    capture_cookie();
+    char second[256];
+    strcpy(second, cookie_from_header);
+    CHECK(strcmp(first, second) != 0);
+    ioi_web_reset();
+    CHECK(ioi_web_session_get() == 0); /* still the first cookie */
+    ioi_web_reset();
+    setenv("HTTP_COOKIE", second, 1);
+    CHECK(ioi_web_session_get() == 9);
+    /* logout deletes the row: replaying the cookie gets nothing */
+    CHECK(ioi_web_session_set(0) == 0 && ioi_web_session_get() == 0);
+    CHECK(strstr(ioi_session_header(), "ioi_session=; ") && strstr(ioi_session_header(), "Max-Age=0"));
+    ioi_web_reset();
+    CHECK(ioi_web_session_get() == 0);
+
+    /* expiry: IOI_NOW past the 30 days */
+    ioi_web_reset();
+    unsetenv("HTTP_COOKIE");
+    setenv("IOI_NOW", "1800000000", 1);
+    CHECK(ioi_web_session_set(5) == 0);
+    capture_cookie();
+    ioi_web_reset();
+    setenv("HTTP_COOKIE", cookie_from_header, 1);
+    setenv("IOI_NOW", "1802591999", 1);
+    CHECK(ioi_web_session_get() == 5);
+    ioi_web_reset();
+    setenv("IOI_NOW", "1802592000", 1);
+    CHECK(ioi_web_session_get() == 0);
+    unsetenv("IOI_NOW");
+
+    /* Secure cookies use the __Host- prefix and ignore the plain name */
+    ioi_web_reset();
+    unsetenv("HTTP_COOKIE");
+    setenv("IOI_SECURE_COOKIES", "1", 1);
+    CHECK(ioi_web_session_set(11) == 0);
+    CHECK(!strncmp(ioi_session_header(), "__Host-ioi_session=", 19));
+    CHECK(strstr(ioi_session_header(), "; Secure") != NULL);
+    capture_cookie();
+    ioi_web_reset();
+    setenv("HTTP_COOKIE", cookie_from_header, 1);
+    CHECK(ioi_web_session_get() == 11);
+    ioi_web_reset();
+    setenv("HTTP_COOKIE", cookie_from_header + 7, 1); /* "ioi_session=..." */
+    CHECK(ioi_web_session_get() == 0);
+    unsetenv("IOI_SECURE_COOKIES");
+
+    /* no secret: nothing is stored */
+    ioi_web_reset();
+    unsetenv("IOI_SECRET");
+    CHECK(ioi_web_session_set(3) == -1);
+    ioi_web_reset();
+
+    /* the framework table exists but ActiveCassette numbering ignores it */
+    struct ioi_db_query q = {.table = 3, .shape = IOI_DB_HOW_MANY};
+    uint32_t v;
+    CHECK(ioi_db_select(&q, &v) == IOI_DB_E_TABLE);
 }
 
 /* ---------------------------------------------------------------- */
@@ -438,6 +544,23 @@ static void test_prose(void)
     CHECK(out.len > 0 && html_is_safe(out.p, &why));
     free(big.p);
     free(out.p);
+
+    /* unmatched [quote] openers are matched in one pass, not per line */
+    struct ioi_buf q = {0}, qo = {0};
+    for (int i = 0; i < 40000; i++)
+        ioi_buf_puts(&q, "[quote]");
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    ioi_prose_render(&qo, q.p, q.len);
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    double secs = (double)(t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
+    checks++;
+    if (secs > 1.0) {
+        failures++;
+        fprintf(stderr, "280 KB of [quote] took %.2f s\n", secs);
+    }
+    free(q.p);
+    free(qo.p);
 }
 
 /* ---------------------------------------------------------------- */
@@ -726,6 +849,7 @@ int main(int argc, char **argv)
     test_prose();
     test_render_helpers();
     test_db(argv[1]);
+    test_session_store();
     printf("web unit: %d checks, %d failures\n", checks, failures);
     return failures != 0;
 }

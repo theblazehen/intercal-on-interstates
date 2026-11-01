@@ -35,6 +35,7 @@
 #define MAX_HEADERS 100
 #define MAX_CHILDREN 256
 #define KEEPALIVE_IDLE_MS 5000
+#define HEAD_TIMEOUT_MS 5000      /* first byte and request head, whatever -t says */
 #define MAX_REQUESTS_PER_CONN 1000
 
 extern char **environ;
@@ -49,12 +50,40 @@ static struct {
     char *db_path;
     char secret[129];
     int timeout_ms;
-} cfg = {10585, NULL, "./public", NULL, NULL, NULL, NULL, "", 10000};
+    int per_ip;          /* connections per client address; 0 = unlimited */
+    int lifetime_ms;     /* no new request on a connection older than this */
+    const char *hosts;   /* IOI_HOSTS allow-list, or NULL */
+} cfg = {10585, NULL, "./public", NULL, NULL, NULL, NULL, "", 10000, 16, 60000, NULL};
 
-/* Connection processes, so SIGTERM/SIGINT can take them down too. Only
- * touched with SIGCHLD blocked or from the handlers. */
+/* Connection processes, so SIGTERM/SIGINT can take them down too, and their
+ * client addresses for the per-address cap. kids[] is cleared from the
+ * SIGCHLD handler; everything else is touched with SIGCHLD blocked. */
 static volatile sig_atomic_t children;
 static volatile pid_t kids[MAX_CHILDREN];
+static char kid_addr[MAX_CHILDREN][64];
+
+/* Is HOST (a Host header) on the comma-separated allow-list? An entry
+ * without a port allows any port. */
+static int host_allowed(const char *list, const char *host)
+{
+    if (!host || !*host)
+        return 0;
+    size_t hl = strlen(host);
+    size_t bare = host[0] == '[' ? strcspn(host, "]") + 1 : strcspn(host, ":");
+    if (bare > hl)
+        bare = hl;
+    for (const char *p = list; *p;) {
+        while (*p == ',' || *p == ' ')
+            p++;
+        size_t n = strcspn(p, ", ");
+        /* exact host:port, or the entry equals the host part (no port) */
+        if (n && ((n == hl && !strncasecmp(p, host, n)) ||
+                  (n == bare && !strncasecmp(p, host, n))))
+            return 1;
+        p += n;
+    }
+    return 0;
+}
 
 /* ---------------------------------------------------------------- */
 /* small utilities                                                  */
@@ -346,6 +375,7 @@ static const char *reason(int s)
     case 409: return "Conflict";
     case 411: return "Length Required";
     case 413: return "Content Too Large";
+    case 421: return "Misdirected Request";
     case 422: return "Unprocessable Content";
     case 429: return "Too Many Requests";
     case 431: return "Request Header Fields Too Large";
@@ -413,6 +443,8 @@ static const char *voice(int status)
     case 408: return "ICL408I YOU TOOK TOO LONG TO SAY THAT";
     case 411: return "ICL411I HOW LONG IS THAT SUPPOSED TO BE?";
     case 413: return "ICL413I THAT BODY IS TOO HEAVY TO WRITE IN";
+    case 421: return "ICL421I THIS SERVER DOES NOT ANSWER TO THAT NAME";
+    case 429: return "ICL429I YOU ARE ALREADY COMING FROM HERE TOO MANY TIMES";
     case 431: return "ICL431I YOUR HEADERS ARE LONGER THAN MY PATIENCE";
     case 500: return "ICL500I THE PROGRAM REFUSED TO BE STARTED";
     case 501: return "ICL501I I DO NOT KNOW HOW TO UNPACK THAT";
@@ -561,17 +593,26 @@ static int read_body(struct conn *c, struct request *r, int64_t deadline)
                     return c->len > 1024 ? 400 : 408;
                 }
             }
-            char *e;
-            errno = 0;
-            unsigned long long size = strtoull(c->in, &e, 16);
-            if (e == c->in || errno || (*e != '\r' && *e != '\n' && *e != ';' && *e != ' ')) {
+            /* chunk-size = 1*8HEXDIG, optional ";ext", then CRLF — nothing
+             * else (no sign, prefix or blanks), and only on this line */
+            size_t ll = (size_t)(nl - c->in);
+            size_t k = 0, size = 0;
+            while (k < ll && k < 9 && hexval((unsigned char)c->in[k]) >= 0)
+                size = size * 16 + (size_t)hexval((unsigned char)c->in[k++]);
+            if (k == 0 || k > 8 || ll == 0 || c->in[ll - 1] != '\r' ||
+                (k != ll - 1 && c->in[k] != ';')) {
                 free(b.p);
                 return 400;
             }
-            consume(c, (size_t)(nl - c->in) + 1);
+            for (size_t x = k; x < ll - 1; x++)
+                if ((unsigned char)c->in[x] < 0x20 || (unsigned char)c->in[x] == 0x7f) {
+                    free(b.p);
+                    return 400;
+                }
+            consume(c, ll + 1);
             if (size == 0)
                 break;
-            if (b.len + size > BODY_CAP) {
+            if (size > BODY_CAP || b.len > BODY_CAP - size) {
                 free(b.p);
                 return 413;
             }
@@ -581,15 +622,12 @@ static int read_body(struct conn *c, struct request *r, int64_t deadline)
                     return 408;
                 }
             }
-            buf_put(&b, c->in, (size_t)size);
-            size_t skip = (size_t)size;
-            if (c->in[skip] == '\r')
-                skip++;
-            if (c->in[skip] != '\n') {
+            if (c->in[size] != '\r' || c->in[size + 1] != '\n') {
                 free(b.p);
                 return 400;
             }
-            consume(c, skip + 1);
+            buf_put(&b, c->in, size);
+            consume(c, size + 2);
         }
         /* trailers until an empty line */
         for (;;) {
@@ -674,7 +712,9 @@ static int serve_static(struct conn *c, struct request *r)
     char *dec = path_decode(r->path, strlen(r->path));
     if (!dec)
         return respond_error(c, r, 400, NULL);
-    const char *rel = dec + strlen("/public/");
+    /* "/public" itself has no file part (and is shorter than the prefix) */
+    size_t declen = strlen(dec);
+    const char *rel = declen > 8 ? dec + 8 : "";
     /* refuse any ".." segment outright, then confirm with realpath */
     int bad = 0;
     for (const char *s = rel; *s;) {
@@ -1073,19 +1113,25 @@ static int serve_cgi(struct conn *c, struct request *r)
 
 static void handle_connection(struct conn *c)
 {
+    int64_t end_of_life = now_ms() + cfg.lifetime_ms;
+    int64_t head_ms = cfg.timeout_ms < HEAD_TIMEOUT_MS ? cfg.timeout_ms : HEAD_TIMEOUT_MS;
     for (int served = 0; served < MAX_REQUESTS_PER_CONN; served++) {
         struct request r;
         memset(&r, 0, sizeof r);
         r.minor = 1;
         r.head_length = -1;
-        /* wait for the first byte of the next request */
-        int64_t idle = now_ms() + (served ? KEEPALIVE_IDLE_MS : cfg.timeout_ms);
+        /* wait for the first byte of the next request: briefly, and never
+         * past the connection's lifetime */
+        int64_t idle = now_ms() + (served ? KEEPALIVE_IDLE_MS : head_ms);
+        if (idle > end_of_life)
+            idle = end_of_life;
         while (c->len == 0) {
             if (fill(c, idle) <= 0)
                 goto out;
         }
         r.start = now_ms();
-        int64_t deadline = r.start + cfg.timeout_ms;
+        /* the head must arrive within head_ms; the body within -t */
+        int64_t deadline = r.start + head_ms;
         /* skip stray CRLFs between requests (RFC 9112 §2.2) */
         while (c->len && (c->in[0] == '\r' || c->in[0] == '\n')) {
             consume(c, 1);
@@ -1130,6 +1176,9 @@ static void handle_connection(struct conn *c)
             if (headlen <= c->len)
                 consume(c, headlen);
         }
+        if (!status && cfg.hosts && !host_allowed(cfg.hosts, hdr(&r, "Host")))
+            status = 421;
+        deadline = r.start + cfg.timeout_ms;
         if (!status)
             status = read_body(c, &r, deadline);
         if (status) {
@@ -1141,12 +1190,14 @@ static void handle_connection(struct conn *c)
             return;
         }
         int rc;
+        if (now_ms() >= end_of_life)
+            r.keepalive = 0;
         if (!strncmp(r.path, "/public/", 8) || !strcmp(r.path, "/public"))
             rc = serve_static(c, &r);
         else
             rc = serve_cgi(c, &r);
         log_request(c, &r);
-        int keep = r.keepalive && rc == 0;
+        int keep = r.keepalive && rc == 0 && now_ms() < end_of_life;
         free_request(&r);
         if (!keep)
             break;
@@ -1267,11 +1318,14 @@ static int listen_on(const char *addr, int port)
 
 static void usage(void)
 {
-    fputs("usage: gross [-p PORT] [-d PUBLIC_DIR] [-b ADDRESS] [-t SECONDS] ./prog\n"
+    fputs("usage: gross [-p PORT] [-d PUBLIC_DIR] [-b ADDRESS] [-t SECONDS] [-c N] [-l SECONDS] ./prog\n"
           "  -p PORT        listen port (default 10585)\n"
           "  -d PUBLIC_DIR  files served at /public/... (default ./public)\n"
           "  -b ADDRESS     bind address (default all interfaces)\n"
-          "  -t SECONDS     per-request time limit (default 10)\n",
+          "  -t SECONDS     per-request time limit (default 10)\n"
+          "  -c N           connections per client address (default 16, 0 = no limit)\n"
+          "  -l SECONDS     keep-alive connection lifetime (default 60)\n"
+          "IOI_HOSTS=host[:port],...  answer only these Host headers (421 otherwise)\n",
           stderr);
     exit(2);
 }
@@ -1279,7 +1333,7 @@ static void usage(void)
 int main(int argc, char **argv)
 {
     int opt;
-    while ((opt = getopt(argc, argv, "p:d:b:t:h")) != -1) {
+    while ((opt = getopt(argc, argv, "p:d:b:t:c:l:h")) != -1) {
         switch (opt) {
         case 'p':
             cfg.port = atoi(optarg);
@@ -1295,6 +1349,18 @@ int main(int argc, char **argv)
             cfg.timeout_ms = s * 1000;
             break;
         }
+        case 'c':
+            cfg.per_ip = atoi(optarg);
+            if (cfg.per_ip < 0 || cfg.per_ip > MAX_CHILDREN)
+                die("bad per-client limit %s", optarg);
+            break;
+        case 'l': {
+            int s = atoi(optarg);
+            if (s <= 0 || s > 86400)
+                die("bad lifetime %s", optarg);
+            cfg.lifetime_ms = s * 1000;
+            break;
+        }
         default: usage();
         }
     }
@@ -1306,6 +1372,9 @@ int main(int argc, char **argv)
     cfg.prog = xstrdup(real);
     if (realpath(cfg.public_dir, real))
         cfg.public_real = xstrdup(real);
+    const char *hosts = getenv("IOI_HOSTS");
+    if (hosts && *hosts)
+        cfg.hosts = hosts;
     const char *app = getenv("IOI_APP_DIR");
     if (app && *app) {
         cfg.app_dir = xstrdup(app);
@@ -1362,21 +1431,34 @@ int main(int argc, char **argv)
             h += 7;
         snprintf(c.peer, sizeof c.peer, "%s", h);
         snprintf(c.port, sizeof c.port, "%s", serv);
-        if (children >= MAX_CHILDREN) {
+        sigset_t set, old;
+        sigemptyset(&set);
+        sigaddset(&set, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &set, &old);
+        int same = 0;
+        for (int i = 0; i < MAX_CHILDREN; i++)
+            if (kids[i] && !strcmp(kid_addr[i], c.peer))
+                same++;
+        int busy = children >= MAX_CHILDREN ? 503 : cfg.per_ip && same >= cfg.per_ip ? 429 : 0;
+        if (busy) {
+            sigprocmask(SIG_SETMASK, &old, NULL);
             struct request r;
             memset(&r, 0, sizeof r);
             r.start = now_ms();
             r.minor = 1;
-            respond_error(&c, &r, 503, "Retry-After: 1\r\n");
+            respond_error(&c, &r, busy, "Retry-After: 1\r\n");
+            log_request(&c, &r);
+            /* swallow what already arrived so close() doesn't reset the
+             * connection under the client before it reads the answer */
+            char junk[4096];
+            while (recv(fd, junk, sizeof junk, MSG_DONTWAIT) > 0)
+                ;
+            shutdown(fd, SHUT_WR);
             close(fd);
             continue;
         }
         int one = 1;
         setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
-        sigset_t set, old;
-        sigemptyset(&set);
-        sigaddset(&set, SIGCHLD);
-        sigprocmask(SIG_BLOCK, &set, &old);
         pid_t pid = fork();
         if (pid == 0) {
             close(lfd);
@@ -1391,6 +1473,7 @@ int main(int argc, char **argv)
             for (int i = 0; i < MAX_CHILDREN; i++)
                 if (kids[i] == 0) {
                     kids[i] = pid;
+                    snprintf(kid_addr[i], sizeof kid_addr[i], "%s", c.peer);
                     children++;
                     break;
                 }

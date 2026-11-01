@@ -66,13 +66,124 @@ static char *tpl_path(struct program *p, const char *name)
 
 /* ---- parsing --------------------------------------------------------------- */
 
+/* Where in the HTML a {{tag}} sits. Only ordinary element content may
+ * receive markup (the Roman numeral overbar spans); attribute values,
+ * comments and raw-text/RCDATA elements get plain text. */
+enum hstate { H_DATA = 0, H_TAGOPEN, H_TAGNAME, H_INTAG, H_COMMENT, H_RAW };
+#define IOI_F_PLAIN_CTX 0x100 /* IOI_F_PLAIN of include/ioi_core.h */
+
+struct hctx {
+    enum hstate st;
+    char quote;          /* inside a quoted attribute value */
+    int endtag;
+    char name[16];       /* current tag name, lower case */
+    char raw[16];        /* raw-text element we are inside */
+    char last[20];       /* the most recent characters, for "-->", "</title" */
+};
+
 struct tparse {
     struct program *p;
     struct tpl *t;
     const char *src;
     size_t len, pos;
     int line;            /* current line in the template */
+    struct hctx h;
 };
+
+static int lc(int c) { return c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c; }
+static int isalpha_(int c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+
+static int ends_with_ci(const char *buf, const char *suffix)
+{
+    size_t l = strlen(buf), s = strlen(suffix);
+    if (s > l)
+        return 0;
+    for (size_t i = 0; i < s; i++)
+        if (lc((unsigned char)buf[l - s + i]) != lc((unsigned char)suffix[i]))
+            return 0;
+    return 1;
+}
+
+static void hctx_feed(struct hctx *h, const char *s, size_t n)
+{
+    static const char *const rawtags[] = {"title", "textarea", "script", "style"};
+    for (size_t i = 0; i < n; i++) {
+        int c = (unsigned char)s[i];
+        size_t ll = strlen(h->last);
+        if (ll + 1 >= sizeof h->last) {
+            memmove(h->last, h->last + 1, ll);
+            ll--;
+        }
+        h->last[ll] = (char)c;
+        h->last[ll + 1] = '\0';
+        switch (h->st) {
+        case H_DATA:
+            if (c == '<')
+                h->st = H_TAGOPEN;
+            break;
+        case H_TAGOPEN:
+            h->endtag = 0;
+            h->name[0] = '\0';
+            if (isalpha_(c)) {
+                h->name[0] = (char)lc(c);
+                h->name[1] = '\0';
+                h->st = H_TAGNAME;
+            } else if (c == '/') {
+                h->endtag = 1;
+                h->st = H_TAGNAME;
+            } else if (c == '!' || c == '?') {
+                h->st = H_INTAG;
+            } else {
+                h->st = H_DATA;
+            }
+            break;
+        case H_TAGNAME:
+            if (isalpha_(c) || (c >= '0' && c <= '9')) {
+                size_t k = strlen(h->name);
+                if (k + 1 < sizeof h->name) {
+                    h->name[k] = (char)lc(c);
+                    h->name[k + 1] = '\0';
+                }
+                break;
+            }
+            h->st = H_INTAG;
+            /* fall through */
+        case H_INTAG:
+            if (ends_with_ci(h->last, "<!--")) {
+                h->st = H_COMMENT;
+            } else if (h->quote) {
+                if (c == h->quote)
+                    h->quote = 0;
+            } else if (c == '"' || c == '\'') {
+                h->quote = (char)c;
+            } else if (c == '>') {
+                h->st = H_DATA;
+                if (!h->endtag)
+                    for (size_t r = 0; r < sizeof rawtags / sizeof *rawtags; r++)
+                        if (!strcmp(h->name, rawtags[r])) {
+                            strcpy(h->raw, rawtags[r]);
+                            h->st = H_RAW;
+                        }
+            }
+            break;
+        case H_COMMENT:
+            if (ends_with_ci(h->last, "-->"))
+                h->st = H_DATA;
+            break;
+        case H_RAW: {
+            char close[20];
+            snprintf(close, sizeof close, "</%s", h->raw);
+            if (ends_with_ci(h->last, close)) {
+                strcpy(h->name, h->raw);
+                h->endtag = 1;
+                h->quote = 0;
+                h->st = H_TAGNAME;
+            }
+            break;
+        }
+        }
+    }
+}
 
 static _Noreturn void terr(struct tparse *tp, int code, const char *what)
 {
@@ -154,6 +265,7 @@ static const char *parse_items(struct tparse *tp, struct item **items, int *nite
             it.text = xstrndup(tp->src + tp->pos, end - tp->pos);
             it.len = end - tp->pos;
             additem(items, nitems, it);
+            hctx_feed(&tp->h, it.text, it.len);
         }
         if (!open)
             return NULL;
@@ -220,6 +332,8 @@ static const char *parse_items(struct tparse *tp, struct item **items, int *nite
         } else {
             it.kind = I_EXPR;
             it.e = texpr(tp, s, n, &it.filter, NULL, NULL);
+            if (tp->h.st != H_DATA)
+                it.filter |= IOI_F_PLAIN_CTX;
             additem(items, nitems, it);
         }
     }
@@ -269,7 +383,7 @@ int tpl_load(struct program *p, const char *name, int line)
         }
     }
     t->flat[o] = '\0';
-    struct tparse tp = {p, t, src, len, 0, 1};
+    struct tparse tp = {p, t, src, len, 0, 1, {0}};
     const char *saved = g_srcname;
     int saved_s = g_smode;
     const char *c = parse_items(&tp, &t->items, &t->nitems);

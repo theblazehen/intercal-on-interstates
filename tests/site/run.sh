@@ -278,6 +278,33 @@ req k35 / -I
 check "ks HEAD" is "$CODE" 200
 stop_gross
 
+# ------------------------------------- Roman numerals in each HTML context
+# Overbar spans only in element content; attributes, comments and raw-text
+# elements get U+0305 COMBINING OVERLINE instead (no markup can escape).
+RM="$TMP/roman"
+mkdir -p "$RM/templates"
+cat >"$RM/templates/r.html" <<'EOF'
+<title>{{#4000}}</title>
+<a title="{{#4000}}" data-x='{{.1 IN ROMAN}}' href=/public/{{#5000}}>{{#4000}} {{,1 IN ROMAN}}</a>
+<!-- {{#4000}} --><textarea>{{#9000}}</textarea><p>{{#9000}}</p>
+<script>var x = "{{#4000}}";</script><b>{{#3}}</b>
+EOF
+printf 'DO COME FROM (16000) WITH ROUTE "/r"\nDO .1 <- #4000\nPLEASE DO ,1 <- "6000"\nDO READ OUT #0 WITH TEMPLATE "r.html"\nDO GIVE UP\n' >"$RM/r.i"
+check "roman contexts: compile" build/ick -s -b "$RM/r.i"
+(cd "$RM" && ./r >"$RM/out" 2>&1)
+cat >"$RM/want" <<'EOF'
+<title>I̅V̅</title>
+<a title="I̅V̅" data-x='I̅V̅' href=/public/V̅><span class="ick-bar">IV</span> <span class="ick-bar">VI</span></a>
+<!-- I̅V̅ --><textarea>I̅X̅</textarea><p><span class="ick-bar">IX</span></p>
+<script>var x = "I̅V̅";</script><b>III</b>
+EOF
+check "roman contexts: output" cmp -s "$RM/out" "$RM/want"
+start_gross "$RM" ./r
+req rm1 /r
+check "roman contexts: served" cmp -s "$R/rm1.b" "$RM/want"
+check "roman contexts: no span in attribute" hasnt $R/rm1.b 'title="<span'
+stop_gross
+
 # ------------------------------------------------------- compile-time errors
 E="$TMP/err"
 mkdir -p "$E/templates"

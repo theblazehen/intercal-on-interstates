@@ -169,7 +169,12 @@ Blocks nest; tags inside a skipped block are not evaluated. Filters: `IN ARABIC`
 `IN ROMAN`, `AS IS`, `AS PROSE`, `AGO`, `AS FACE`. `IN ARABIC`/`IN ROMAN` on BYTES of digits
 parse them (other BYTES are shown escaped). Numbers render as Roman numerals (HTML, overbars
 as `<span class="ick-bar">…</span>`, lowercase letters for ×1 000 000); zero renders as `_`,
-READ OUT's own spelling. Bad-character operators are not allowed in templates (E406).
+READ OUT's own spelling. The compiler tracks where each `{{…}}` sits in the HTML: inside an
+attribute value (quoted or not), an HTML comment, or a `<title>`, `<textarea>`, `<script>`
+or `<style>` element, a Roman numeral is plain text instead, each barred letter followed by
+U+0305 COMBINING OVERLINE (`I̅V̅`), so no markup is ever emitted there. Each template starts
+in element content (an include does not inherit its includer's context).
+Bad-character operators are not allowed in templates (E406).
 Extraction and loops follow SPEC.md §4; a loop saves `,1…,144`, `;1…;144` and `.144` and
 restores them afterwards.
 
@@ -195,7 +200,7 @@ Compile-time errors in `-s` mode (and template errors) are prefixed with `file:l
 | E414 | BYTES DO NOT MAKE A LIST | (runtime) BYTES assigned to a whole hybrid array |
 | E420 | THE CASSETTE IS CHEWED UP: *detail* | (runtime) database failure |
 | E421 | NO SUCH SHELF IN THE CASSETTE LIBRARY: *detail* | (runtime) no such table/column |
-| E422 | THE SESSION HAS NO SECRET TO KEEP | (runtime) `READ OUT … WITH SESSION` while serving without `IOI_SECRET` |
+| E422 | THE SESSION WOULD NOT STAY PUT | (runtime) `READ OUT … WITH SESSION` could not store the session while serving (no `IOI_SECRET`, or the session table refused it) |
 
 Runtime errors in a web request render the error page (status 403/404 as above, else 500)
 with the full `ICLnnnI` text, still print it to stderr, and exit with the error number.

@@ -191,6 +191,32 @@ void ioi_tpl_roman(uint32_t n)
         ioi_web_append_raw("</span>", 7);
 }
 
+void ioi_tpl_roman_plain(uint32_t n)
+{
+    char buf[96];
+    ioi_roman(n, buf);
+    if (n == 0) {
+        ioi_web_append_raw("_", 1);
+        return;
+    }
+    char *nl = strchr(buf, '\n');
+    const char *bar = buf, *let = nl + 1;
+    size_t len = strlen(let);
+    for (size_t i = 0; i < len; i++) {
+        ioi_web_append_raw(let + i, 1);
+        if (bar[i] == '_')
+            ioi_web_append_raw("\xCC\x85", 2); /* U+0305 COMBINING OVERLINE */
+    }
+}
+
+static void roman(uint32_t n, int plain)
+{
+    if (plain)
+        ioi_tpl_roman_plain(n);
+    else
+        ioi_tpl_roman(n);
+}
+
 static void decimal(uint32_t n)
 {
     char b[16];
@@ -200,6 +226,8 @@ static void decimal(uint32_t n)
 
 void ioi_tpl_value(uint32_t v, int filter)
 {
+    int plain = filter & IOI_F_PLAIN;
+    int f = filter & 0xff;
     switch (ioi_val_kind(v)) {
     case IOI_LIST:
         for (size_t i = 0; i < ioi_cas_len(v); i++)
@@ -210,7 +238,7 @@ void ioi_tpl_value(uint32_t v, int filter)
         const uint8_t *d = ioi_cas_data(v, &n);
         int ok;
         uint32_t num;
-        switch (filter) {
+        switch (f) {
         case IOI_F_RAW:
             ioi_web_append_raw(d, n);
             return;
@@ -230,10 +258,10 @@ void ioi_tpl_value(uint32_t v, int filter)
                 ioi_web_append_escaped(d, n); /* not a number: show it as text */
                 return;
             }
-            if (filter == IOI_F_ARABIC)
+            if (f == IOI_F_ARABIC)
                 decimal(num);
             else
-                ioi_tpl_roman(num);
+                roman(num, plain);
             return;
         default:
             ioi_web_append_escaped(d, n);
@@ -242,7 +270,7 @@ void ioi_tpl_value(uint32_t v, int filter)
     }
     default: {
         uint32_t num = ioi_val_to_number(v, NULL);
-        switch (filter) {
+        switch (f) {
         case IOI_F_ARABIC:
             decimal(num);
             return;
@@ -256,7 +284,7 @@ void ioi_tpl_value(uint32_t v, int filter)
             return;
         }
         default:
-            ioi_tpl_roman(num);
+            roman(num, plain);
             return;
         }
     }

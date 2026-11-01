@@ -1,11 +1,13 @@
-# PLEASE DISCUSS — forum design package
+# PLEASE DISCUSS — the INTERCAL on Interstates community forum
 
-The data model, seed data, templates, styles and route contract for the INTERCAL on
-Interstates community forum. The program itself (`forum.i`) is written against
-[ROUTES.md](ROUTES.md); the product is described in [PRD.md](PRD.md).
+A phpBB-structured, Discourse-readable forum written in INTERCAL on Interstates. `forum.i`
+is the whole program: routing, sessions, permissions, validation, pagination arithmetic and
+every database read and write. It is written against [ROUTES.md](ROUTES.md); the product is
+described in [PRD.md](PRD.md).
 
 | Path | What |
 |---|---|
+| `forum.i` | the program (~1100 lines of INTERCAL, about 23 % PLEASE) |
 | `schema.sql` | 6 tables + 6 read-only views; numbering is the ActiveCassette contract |
 | `seed.sql` | 10 accounts, 2 sections, 4 categories, 14 topics, 65 posts, 91 PLEASEs |
 | `templates/` | 11 page templates, 5 partials (`_*.html`), 7 redirect templates (`to_*.txt`) |
@@ -13,8 +15,84 @@ Interstates community forum. The program itself (`forum.i`) is written against
 | `public/forum.js` | optional: delete confirmation, Ctrl/Cmd+Enter to post |
 | `public/favicon.svg` | the Interstate-72 shield |
 | `ROUTES.md` | every route, origin label, query, template parameter, message and redirect |
+| `tests/run.sh` | curl end-to-end test (also run by `make check` via `tests/forum/run.sh`) |
 | `preview/*.html` | static pages rendered from the real templates and seed data |
 | `preview/shots/` | screenshots of the previews: desktop 1280 px and mobile 390 px, light and dark |
+
+## Running
+
+```
+mise run forum            # builds ick/gross, compiles forum.i, serves http://localhost:10585
+```
+
+By hand, from `forum/`: `../build/ick -s -b forum.i && ../build/gross ./forum`. The database
+is `forum/cassette.db` (override with `IOI_DATABASE`); the first request on a missing or empty
+database runs `schema.sql` and `seed.sql`. Delete `cassette.db*` for a fresh forum. Run from a
+shell (`./forum`), the program prints the board index, which also creates the database.
+
+To start with no accounts at all (so the first registration becomes the admin), serve with
+`IOI_APP_DIR` pointing at a directory that holds only `schema.sql`; templates are compiled into
+the binary, so the app directory only supplies the SQL.
+
+## Tests
+
+`sh forum/tests/run.sh` (from anywhere; `KEEP=1` keeps the temp dir) compiles `forum.i` into a
+temp dir and serves it twice on random ports:
+
+1. **Empty forum** (schema only): the first registered account is the admin, the second a
+   member, the admin sees the promote box.
+2. **Seeded forum** (temp copy of the database): every page with real data, pagination
+   boundaries (page 0, non-numeric, past the end), search, CSRF (no or foreign `Origin`,
+   origin-130 GET without `Referer`), every registration and compose validation message, sign
+   in/out, topic + reply + preview + quote, edit (own, someone else's → 403, moderator), soft
+   delete by author and moderator, PLEASE/un-PLEASE and PLEASE-yourself → 403, pin/lock/move
+   (locked topics refuse replies and quotes, even from moderators), promote/demote and its
+   403/400/404s, bio settings, XSS payloads in title, body, bio and username rendered inert, and
+   the topic page under 100 ms.
+
+It prints `forum: N passed, M failed` and exits non-zero on any failure.
+
+## forum.i — how the program is laid out
+
+The header of `forum.i` repeats this map. Route *n* (ROUTES.md §3 order, which is also the
+COME FROM order) lives at labels `2000 + 100n`:
+
+| Labels | What |
+|---|---|
+| (100)–(190) | the one `READ OUT … WITH TEMPLATE` line of each page (ROUTES.md §1.1). Single-route pages render inline at the end of their handler; compose (140), login (150), register (160) and settings (180) sit in a shared block that their GET and POST handlers `NEXT` to |
+| (400) (403) (404) | `error.html` with status 400/403/404 |
+| (600)–(690) | form validators: category, title, body, bio, username, password, confirmation; (690) decides save-or-show from the validity flag `.40` and the Preview button |
+| (800)–(894) | error raisers, one per ROUTES.md §1.8 message; they never return |
+| (900) | the session subroutine every handler calls first (`:100`, `,100`, `.101`–`.104`) |
+| (905) (907) (915) (917) | guards: POST needs an account (403), GET needs an account (→ `/login`), moderator only, topic must exist |
+| (910) | pagination: rows and requested page in, page/pages/prev/next/skip out, 404 past the end |
+| (920)–(928) | byte scanner over a 256-entry class table (blank bytes, username bytes) |
+| (930) (950) | "topic open for replies" and "post you may edit or delete" loaders |
+| (960) (970) | 32-bit differ and less-than, via the system library's subtraction (1510) |
+| (980) | the branch helper: `DO (L) NEXT` / `(L) DO (980) NEXT` runs the code after `(L)` when `.5` is zero |
+| (985) | redirect back to the topic after a moderator action |
+| 2100–4799 | the 27 route handlers |
+
+INTERCAL has no `IF`. Every decision is a 0/1 flag in `.5` (`'.x~.x'~#1` is "not zero",
+`'?.a$.b'~'#0$#65535'` is XOR, `'V.a$.b'~'#0$#65535'` is OR, `.a~.b` is AND of two flags)
+followed by the branch idiom above; the zero branch either `RESUME #1`s back to the line after
+`DO (L) NEXT` (an IF-THEN), `RESUME #2`s out of the enclosing subroutine, or raises an error and
+never comes back. Loops are `COME FROM` the last statement of their body. Arithmetic is the
+system library: (1020) for counters, (1500)/(1510)/(1540)/(1550) for pages and views,
+(1030) for the topic page's row count. The register handler computes the new account's role
+as `z$#1` (mingle), which is 3 for the first account and 1 afterwards.
+
+### Deviations from ROUTES.md
+
+None in routes, origins, queries, parameters, messages or redirects. Implementation notes:
+
+- The quote check in `GET /t/:id/reply` is a single `HOW MANY` on posts with `HAVING #0 quote
+  HAVING #1 topic HAVING #6 #0` instead of fetching the row and comparing three columns.
+- `.4401` saturates at 65 535, so the blank-text scan looks at the first 65 535 bytes of a
+  field. Longer bodies fail the 20 000-byte limit anyway; a body that is blank for its first
+  64 KiB is reported as empty rather than too long.
+- Page numbers are read into a 32-bit variable; non-numeric values, values above 4 294 967 295
+  and 0 all mean page 1.
 
 ## Seed accounts
 
@@ -115,12 +193,11 @@ mobile/dark.
 
 ## Validation against the real compiler
 
-A scratch program (outside the repository) declared all 27 routes with the origins in
-ROUTES.md and rendered every template from its assigned line with the queries ROUTES.md
-specifies. `build/ick -s -b` compiled it, static link check included, and its CGI output
-against the seed database answered 200 for every page (404 for the catch-all) and 303 for
-every redirect template. Rendering `topic.html`, `compose.html`, `profile.html` or `login.html`
-from a wrong line fails with `ICL401I NO ROAD LEADS TO …`, so the check is live.
+`forum.i` declares all 27 routes with the origins in ROUTES.md and renders every template from
+its assigned line; `build/ick -s -b` compiles it with the static link check and the politeness
+check passing, and `tests/run.sh` exercises every route. Rendering `topic.html`,
+`compose.html`, `profile.html` or `login.html` from a wrong line fails with
+`ICL401I NO ROAD LEADS TO …`, so the check is live.
 
 ## Contract notes for other components
 

@@ -47,8 +47,9 @@ const char *ioi_web_path(void);
 
 /* 1 when the Origin header (or, absent that, the Referer header) names the
  * same host:port as HTTP_HOST. 0 when neither header is present, when
- * Origin is "null", or when the hosts differ. This is the CSRF check of
- * SPEC.md §2.4; the generated code decides when it is required. */
+ * Origin is "null", when the hosts differ, or when IOI_HOSTS is set and
+ * HTTP_HOST is not on it. This is the CSRF check of SPEC.md §2.4; the
+ * generated code decides when it is required. */
 int ioi_web_same_origin(void);
 
 /* Match the current request against PATTERN = "[METHOD ]/a/:b/ *" (written
@@ -82,14 +83,17 @@ int ioi_web_field(const char *name, const uint8_t **data, size_t *len);
  * *out on success; 0 (and *out = 0) when empty, malformed, or > 4294967295. */
 int ioi_web_parse_number(const uint8_t *data, size_t len, uint32_t *out);
 
-/* Session value (a number; 0 when absent, unsigned, expired or forged). */
+/* Session value (a number; 0 when absent, expired, logged out or forged). */
 uint32_t ioi_web_session_get(void);
 
-/* Set the session value; 0 logs out (the cookie is deleted). The cookie is
- * HMAC-SHA256 signed with IOI_SECRET, HttpOnly, SameSite=Lax, Path=/, valid
- * 30 days. Takes effect for later ioi_web_session_get calls at once and is
- * sent by ioi_web_finish. Returns 0, or -1 when IOI_SECRET is unset or empty
- * (nothing is set). */
+/* Set the session value; 0 logs out. Sessions are server-side: the cookie
+ * (HttpOnly, SameSite=Lax, Path=/, 30 days; "__Host-" prefixed and Secure
+ * when IOI_SECURE_COOKIES=1) carries a random 128-bit id HMAC-signed with
+ * IOI_SECRET, and the value lives in the database table ioi_sessions.
+ * Setting a value issues a fresh id; 0 deletes the row, so old copies of
+ * the cookie stop working. Takes effect for later ioi_web_session_get calls
+ * at once and is sent by ioi_web_finish. Returns 0, or -1 when IOI_SECRET
+ * is unset or the database cannot store it (nothing is set). */
 int ioi_web_session_set(uint32_t value);
 
 /* Unix time in seconds (IOI_NOW overrides, for tests). */

@@ -125,10 +125,13 @@ uint32_t *ioi_aref32_grow(ioi_array *a, uint32_t k);
 
 /* ---- templates ---------------------------------------------------------- */
 
-/* Filters of {{EXPR FILTER}}. */
+/* Filters of {{EXPR FILTER}}. IOI_F_PLAIN may be or-ed in: the tag sits in
+ * an attribute value, comment or raw-text/RCDATA element (title, textarea,
+ * script, style), so markup must not be emitted there. */
 enum {
     IOI_F_DEFAULT = 0, IOI_F_ARABIC, IOI_F_ROMAN, IOI_F_RAW, IOI_F_PROSE,
-    IOI_F_AGO, IOI_F_FACE
+    IOI_F_AGO, IOI_F_FACE,
+    IOI_F_PLAIN = 0x100
 };
 
 /* Template variable context: the program's ,1..,144 / ;1..;144 / .144
@@ -146,6 +149,9 @@ void ioi_tpl_value(uint32_t v, int filter);
 void ioi_tpl_number(uint32_t n, int filter);
 /* Roman numerals as HTML (overbars as <span class="ick-bar">). */
 void ioi_tpl_roman(uint32_t n);
+/* Roman numerals as plain text (U+0305 COMBINING OVERLINE after each
+ * barred letter): safe inside attributes and raw-text elements. */
+void ioi_tpl_roman_plain(uint32_t n);
 
 /* READ OUT #n WITH TEMPLATE: extract ;49221 SUB 1..n into ,144.. / ;144.. */
 void ioi_tpl_extract(const struct ioi_tpl_vars *tv, ioi_array *params, uint32_t n);
@@ -173,7 +179,7 @@ void ioi_s_check_origin(int origin_is_16000);
 void ioi_s_db_check(int status);
 /* STASH ;n INTO DATABASE #t; *rowid (may be NULL) receives the row id. */
 void ioi_s_db_insert(unsigned table, ioi_array *a, uint32_t *rowid);
-/* READ OUT x WITH SESSION (E422 when serving without IOI_SECRET). */
+/* READ OUT x WITH SESSION (E422 when serving and the session cannot be stored). */
 void ioi_s_session_set(uint32_t n);
 /* A LIST holding one value. */
 uint32_t ioi_s_list1(uint32_t v);

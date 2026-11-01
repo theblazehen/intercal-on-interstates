@@ -51,17 +51,32 @@ malformed pattern never matches (`ioi_web_match` reports -1).
 `Origin` is used when present (`null` fails); otherwise `Referer`. Its
 `host[:port]` (scheme http or https, default port dropped, case-insensitive,
 userinfo ignored) must equal `HTTP_HOST` (default port dropped for the same
-scheme). No header at all fails.
+scheme). No header at all fails. When `IOI_HOSTS` (comma-separated
+`host` or `host:port`; a bare host allows any port) is set, an `HTTP_HOST`
+not on it fails too — a DNS-rebinding page can't pass by sending its own
+`Host` and `Origin`. gross enforces the same list for every request (421).
 
 ## Sessions
 
-Cookie `ioi_session=v1.<value>.<issued>.<hmac>`, HMAC-SHA256 over
-`v1.<value>.<issued>` keyed by `IOI_SECRET`, compared in constant time.
-Attributes `Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000` (`Secure` when
-`HTTPS=on`). A cookie older than 30 days, issued more than 5 minutes in the
-future, or signed with another secret reads as 0. Setting 0 sends
-`Max-Age=0`. Without `IOI_SECRET` the session is always 0 and
-`ioi_web_session_set` returns -1. `IOI_NOW` overrides the clock (tests).
+Server-side. The cookie `ioi_session=<id>.<mac>` carries a random 128-bit
+id (32 hex digits from `/dev/urandom`) and HMAC-SHA256(`IOI_SECRET`, id),
+checked in constant time. The number lives in the framework table
+`ioi_sessions(key, value, expires)` under the hex SHA-256 of the id, so a
+copy of the database holds no usable cookies.
+
+- Setting a value issues a fresh id (and deletes the old row); setting 0
+  deletes the row and sends `Max-Age=0`. A copied or stolen cookie therefore
+  dies at logout, and a reset database (new `cassette.db`) honours no old
+  cookie, even though user ids restart.
+- Rows expire 30 days after they were set; expired rows are purged whenever
+  a session is set. Attributes `Path=/; HttpOnly; SameSite=Lax;
+  Max-Age=2592000`. With `IOI_SECURE_COOKIES=1` (or `HTTPS=on`) the cookie
+  is `__Host-ioi_session=…; Secure` — set it when a TLS terminator sits in
+  front of gross; gross passes `IOI_*` through.
+- Without `IOI_SECRET` the session is always 0 and `ioi_web_session_set`
+  returns -1; it also returns -1 when the database can't store the row.
+  Sessions need the database even for programs that use no tables.
+- `IOI_NOW` overrides the clock (tests).
 
 ## Response
 
@@ -117,7 +132,9 @@ indentation after a list ends it), and a list may interrupt a paragraph
 (ordered lists only when they start at 1). Nesting of quotes/lists/block
 quotes is capped at 16 levels and emphasis/link nesting at 16; deeper input is
 rendered as text. `[quote]` tags are recognised anywhere outside fenced code,
-including inside inline code spans.
+including inside inline code spans; openers and closers are paired once per
+block level with a stack (linear time — 280 KB of unclosed `[quote]` renders
+in well under a second).
 
 ## AGO and AS FACE
 
@@ -134,15 +151,22 @@ role="img"><title>name</title>…</svg>`, well under 1 KB. Size it with CSS.
 ## ActiveCassette
 
 - Opened lazily on first use: `IOI_DATABASE` (default `./cassette.db`),
-  5 s busy timeout, `journal_mode=WAL`, `foreign_keys=ON`. Inside one
-  `BEGIN IMMEDIATE` transaction, an empty database (no `sqlite_master` rows)
-  runs `IOI_APP_DIR/schema.sql` then `seed.sql` (each optional; default
-  directory is that of the executable), then every PASSWORD value not
-  already in hash format is hashed. So `schema.sql`/`seed.sql` must not
-  contain `BEGIN`/`COMMIT`, and seeds may carry plaintext passwords.
+  5 s busy timeout, `journal_mode=WAL`, `foreign_keys=ON`. The WAL is not
+  checkpointed when a request's process closes the database (that cost two
+  fsyncs, ~25 ms, per writing request); SQLite checkpoints it as it grows,
+  so `cassette.db-wal` normally stays next to the database.
+- Set-up: inside one `BEGIN IMMEDIATE` transaction, a database without
+  application objects runs `IOI_APP_DIR/schema.sql` then `seed.sql` (each
+  optional; default directory is that of the executable), creates
+  `ioi_sessions`, then hashes every PASSWORD value not already in hash format.
+  A process killed part-way leaves the database untouched and the next
+  request does it all again. So `schema.sql`/`seed.sql` must not contain
+  `BEGIN`/`COMMIT`, and seeds may carry plaintext passwords. An initialised
+  database is opened without taking the write lock.
+- Names starting with `ioi_` are reserved for the framework.
 - Tables: `sqlite_master` rows of type `table` or `view` in `rowid` (=
-  creation) order, from 0, skipping `sqlite_*` and virtual-table shadow tables.
-  Columns: `pragma_table_info` order, from 0.
+  creation) order, from 0, skipping `sqlite_*`, `ioi_*` and virtual-table
+  shadow tables. Columns: `pragma_table_info` order, from 0.
 - Values out: INTEGER in 0..4294967295 → number (`ioi_val_number`), other
   integers and REAL → decimal BYTES, TEXT/BLOB → BYTES, NULL → empty BYTES.
 - Values in: numbers bind as INTEGER, BYTES as TEXT. In `HAVING` (equality and
@@ -157,16 +181,20 @@ role="img"><title>name</title>…</svg>`, well under 1 KB. Size it with CSS.
   matches NULL, since NULL reads back as the empty string.
 - `PASSWORD` columns (declared type exactly `PASSWORD`, any case) store
   `pbkdf2-sha256$<iterations>$<salt hex>$<hash hex>`: 16-byte salt from
-  `/dev/urandom`, 32-byte PBKDF2-HMAC-SHA256, 20000 iterations (about 8 ms
-  per hash: after the first round each iteration is two SHA-256 compressions
-  on pre-padded blocks; a CGI process pays this on every sign-in; the format records the
-  count, so it can be raised later without breaking old hashes). Every insert
-  or update hashes. `HAVING #c expr` on a PASSWORD column verifies the
-  candidate in constant time; those conditions are applied in C after the SQL
-  conditions, with `SKIP`/`TAKE` applied after them. `SOMEWHERE`/`BEYOND` on a
-  PASSWORD column is `IOI_DB_E_VALUE`. Because the declared type has NUMERIC
-  affinity, an all-digit plaintext seed password loses leading zeros before it
-  is hashed: don't seed such passwords.
+  `/dev/urandom`, 32-byte PBKDF2-HMAC-SHA256, 80000 iterations (about 30 ms
+  per hash here: after the first round each iteration is two SHA-256
+  compressions on pre-padded blocks; a sign-in is ~40 ms end to end and a
+  fresh forum database with 10 seed users sets up in ~0.3 s; the format
+  records the count, so it can be raised later without breaking old hashes).
+  Every insert or update hashes. `HAVING #c expr` on a PASSWORD column
+  verifies the candidate in constant time; those conditions are applied in C
+  after the SQL conditions, with `SKIP`/`TAKE` applied after them. When no
+  row reaches that check (unknown user), one verification against a fixed
+  dummy hash runs anyway, so a missing account answers as slowly as a wrong
+  password. `SOMEWHERE`/`BEYOND` on a PASSWORD column is `IOI_DB_E_VALUE`.
+  Because the declared type has NUMERIC affinity, an all-digit plaintext
+  seed password loses leading zeros before it is hashed: don't seed such
+  passwords.
 - `SKIP`/`TAKE`/`BY` on update and delete select the target rows by `rowid`;
   so do PASSWORD conditions there. Tables declared `WITHOUT ROWID` support
   only unpaged updates/deletes without PASSWORD conditions.

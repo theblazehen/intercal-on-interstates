@@ -116,6 +116,7 @@ static int load_schema(void)
     sqlite3_stmt *st;
     const char *q = "SELECT name FROM sqlite_master WHERE type IN ('table','view') "
                     "AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' "
+                    "AND name NOT LIKE 'ioi\\_%' ESCAPE '\\' "
                     "AND name NOT IN (SELECT name FROM pragma_table_list WHERE type = 'shadow') "
                     "ORDER BY rowid";
     if (sqlite3_prepare_v2(db, q, -1, &st, NULL) != SQLITE_OK)
@@ -241,6 +242,31 @@ static int run_file(const char *dir, const char *name, int required)
     return IOI_DB_OK;
 }
 
+/* Objects of the application (the framework's own ioi_* tables excluded). */
+#define USER_OBJECTS_SQL \
+    "SELECT count(*) FROM sqlite_master WHERE tbl_name NOT LIKE 'ioi\\_%' ESCAPE '\\'"
+
+/* Server-side sessions: the cookie names a random id; only its SHA-256 is
+ * stored. Hidden from ActiveCassette numbering by the ioi_ prefix. */
+#define SESSIONS_SQL                                                              \
+    "CREATE TABLE IF NOT EXISTS ioi_sessions (key TEXT PRIMARY KEY, value INTEGER NOT NULL," \
+    " expires INTEGER NOT NULL) WITHOUT ROWID"
+
+/* 1 when the application schema is present and ioi_sessions exists. */
+static int db_initialised(void)
+{
+    sqlite3_stmt *st;
+    int ok = 0;
+    if (sqlite3_prepare_v2(db,
+                           "SELECT (" USER_OBJECTS_SQL ") > 0 AND EXISTS (SELECT 1 FROM sqlite_master"
+                           " WHERE name = 'ioi_sessions')",
+                           -1, &st, NULL) == SQLITE_OK) {
+        ok = sqlite3_step(st) == SQLITE_ROW && sqlite3_column_int(st, 0) == 1;
+        sqlite3_finalize(st);
+    }
+    return ok;
+}
+
 static int open_db(void)
 {
     if (db_state == 1)
@@ -263,15 +289,29 @@ static int open_db(void)
         atexit(ioi_db_close);
     }
     sqlite3_busy_timeout(db, 5000);
+    /* One process per request: checkpointing (two fsyncs) at every close
+     * would cost each writing request ~25 ms. The WAL stays between
+     * requests and is checkpointed automatically as it grows. */
+    sqlite3_db_config(db, SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, 1, NULL);
     sqlite3_exec(db, "PRAGMA journal_mode=WAL", NULL, NULL, NULL);
     sqlite3_exec(db, "PRAGMA foreign_keys=ON", NULL, NULL, NULL);
 
+    /* Fast path: an initialised database needs no write lock. */
     int rc = IOI_DB_OK;
+    if (db_initialised() == 1) {
+        if ((rc = load_schema()))
+            return IOI_DB_E_OPEN;
+        db_state = 1;
+        errbuf[0] = 0;
+        return IOI_DB_OK;
+    }
+    /* Otherwise set up under one write transaction: whatever happens to this
+     * process, the database ends up either untouched or complete. */
     if (sqlite3_exec(db, "BEGIN IMMEDIATE", NULL, NULL, NULL) != SQLITE_OK)
         return fail(IOI_DB_E_OPEN, "%s", sqlite3_errmsg(db));
-    sqlite3_stmt *st;
     int empty = 0;
-    if (sqlite3_prepare_v2(db, "SELECT count(*) FROM sqlite_master", -1, &st, NULL) == SQLITE_OK) {
+    sqlite3_stmt *st;
+    if (sqlite3_prepare_v2(db, USER_OBJECTS_SQL, -1, &st, NULL) == SQLITE_OK) {
         empty = sqlite3_step(st) == SQLITE_ROW && sqlite3_column_int(st, 0) == 0;
         sqlite3_finalize(st);
     }
@@ -282,6 +322,8 @@ static int open_db(void)
             rc = run_file(dir, "seed.sql", 0);
         free(dir);
     }
+    if (!rc && sqlite3_exec(db, SESSIONS_SQL, NULL, NULL, NULL) != SQLITE_OK)
+        rc = fail(IOI_DB_E_OPEN, "%s", sqlite3_errmsg(db));
     if (!rc)
         rc = load_schema();
     if (!rc && empty)
@@ -547,6 +589,22 @@ static int pw_match(sqlite3_stmt *st, int base, const struct ioi_db_query *q, co
     return 1;
 }
 
+/* No row reached pw_match: spend the same PBKDF2 time anyway, so a missing
+ * account answers as slowly as a wrong password. */
+static void pw_dummy(const struct ioi_db_query *q, const struct table *t)
+{
+    const char *dummy = ioi_password_dummy();
+    for (size_t i = 0; i < q->nconds; i++) {
+        if (!t->cols[q->conds[i].col].password)
+            continue;
+        char nb[16];
+        size_t n;
+        const char *pw = scalar_text(q->conds[i].value, nb, &n);
+        ioi_password_verify(pw ? pw : "", pw ? n : 0, dummy, strlen(dummy));
+        return;
+    }
+}
+
 static void append_pw_cols(struct ioi_buf *b, const struct ioi_db_query *q, const struct table *t,
                            int leading_comma)
 {
@@ -650,7 +708,7 @@ int ioi_db_select(const struct ioi_db_query *q, uint32_t *out)
     int pwbase = ncols == 0 ? 1 : (int)ncols;
     uint32_t bulk = ioi_cas_list(), result = 0;
     int have_row = 0;
-    uint64_t matched = 0, skipped = 0;
+    uint64_t matched = 0, skipped = 0, candidates = 0;
     for (;;) {
         int s = sqlite3_step(st);
         if (s == SQLITE_DONE)
@@ -664,6 +722,7 @@ int ioi_db_select(const struct ioi_db_query *q, uint32_t *out)
             break;
         }
         if (pw) {
+            candidates++;
             if (!pw_match(st, pwbase, q, t))
                 continue;
             if (skipped < q->skip) {
@@ -683,6 +742,8 @@ int ioi_db_select(const struct ioi_db_query *q, uint32_t *out)
         }
         ioi_cas_push(bulk, shape_row(st, ncols));
     }
+    if (pw && !candidates)
+        pw_dummy(q, t);
     if (q->shape == IOI_DB_HOW_MANY)
         *out = ioi_val_number(matched > UINT32_MAX ? UINT32_MAX : (uint32_t)matched);
     else if (q->shape == IOI_DB_ROW)
@@ -825,7 +886,7 @@ static int modify(const struct ioi_db_query *q, const uint32_t *set, size_t nset
         goto done;
     sqlite3_int64 *ids = NULL;
     size_t nids = 0, cap = 0;
-    uint64_t skipped = 0;
+    uint64_t skipped = 0, candidates = 0;
     for (;;) {
         int s = sqlite3_step(pick);
         if (s == SQLITE_DONE)
@@ -835,6 +896,7 @@ static int modify(const struct ioi_db_query *q, const uint32_t *set, size_t nset
             free(ids);
             goto done;
         }
+        candidates++;
         if (!pw_match(pick, 1, q, t))
             continue;
         if (skipped < q->skip) {
@@ -850,6 +912,8 @@ static int modify(const struct ioi_db_query *q, const uint32_t *set, size_t nset
         ids[nids++] = sqlite3_column_int64(pick, 0);
     }
     sqlite3_finalize(pick);
+    if (!candidates)
+        pw_dummy(q, t);
     pick = NULL;
     sqlite3_exec(db, "SAVEPOINT ioi_modify", NULL, NULL, NULL);
     for (size_t i = 0; i < nids && !rc; i++) {
@@ -904,4 +968,51 @@ int ioi_db_delete(const struct ioi_db_query *q, uint32_t *changed)
     struct ioi_db_query d = *q;
     d.ncols = 0;
     return modify(&d, NULL, 0, changed);
+}
+
+/* ---------------------------------------------------------------- */
+/* Sessions (ioi_sessions; see session.c)                           */
+
+static int session_exec(const char *sql, const char *key, int64_t a, int64_t b, int nints,
+                        uint32_t *value)
+{
+    int rc = open_db();
+    if (rc)
+        return rc;
+    sqlite3_stmt *st;
+    if (sqlite3_prepare_v2(db, sql, -1, &st, NULL) != SQLITE_OK)
+        return sql_fail();
+    int p = 1;
+    if (key)
+        sqlite3_bind_text(st, p++, key, -1, SQLITE_STATIC);
+    if (nints >= 1)
+        sqlite3_bind_int64(st, p++, a);
+    if (nints >= 2)
+        sqlite3_bind_int64(st, p++, b);
+    int s = sqlite3_step(st);
+    if (value)
+        *value = s == SQLITE_ROW ? (uint32_t)sqlite3_column_int64(st, 0) : 0;
+    rc = s == SQLITE_ROW || s == SQLITE_DONE ? IOI_DB_OK : sql_fail();
+    sqlite3_finalize(st);
+    return rc;
+}
+
+int ioi_db_session_get(const char *key, uint32_t now, uint32_t *value)
+{
+    return session_exec("SELECT value FROM ioi_sessions WHERE key = ? AND expires > ?", key, now, 0,
+                        1, value);
+}
+
+int ioi_db_session_put(const char *key, uint32_t value, uint32_t now, uint32_t expires)
+{
+    int rc = session_exec("DELETE FROM ioi_sessions WHERE expires <= ?", NULL, now, 0, 1, NULL);
+    if (!rc)
+        rc = session_exec("INSERT INTO ioi_sessions (key, value, expires) VALUES (?, ?, ?)", key,
+                          value, expires, 2, NULL);
+    return rc;
+}
+
+int ioi_db_session_delete(const char *key)
+{
+    return session_exec("DELETE FROM ioi_sessions WHERE key = ?", key, 0, 0, 0, NULL);
 }

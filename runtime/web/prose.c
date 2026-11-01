@@ -539,27 +539,38 @@ static int list_marker(struct line l, struct marker *m)
     return 1;
 }
 
-static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int depth, int tight);
+static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int depth, int tight,
+                          const size_t *qm);
 
-static size_t find_quote_close(struct line *ls, size_t from, size_t n)
+/* For every line, the distance to the [/quote] closing the [quote] it opens
+ * (0 when it opens none), found in one pass with a stack. Distances are
+ * relative, so the table stays valid for any slice starting at a line. */
+static size_t *quote_matches(struct line *ls, size_t n)
 {
-    int d = 1, fence = 0;
+    size_t *dist = ioi_xmalloc(sizeof *dist * (n + 1));
+    size_t *stack = ioi_xmalloc(sizeof *stack * (n + 1));
+    size_t top = 0;
+    int fence = 0;
     struct line nm;
-    for (size_t j = from; j < n; j++) {
+    for (size_t j = 0; j < n; j++) {
+        dist[j] = 0;
         int was = fence;
         fence = fence_after(fence, ls[j].s, ls[j].n);
         if (was || fence)
             continue;
         if (is_quote_open(ls[j], &nm))
-            d++;
-        else if (is_quote_close(ls[j]) && --d == 0)
-            return j;
+            stack[top++] = j;
+        else if (is_quote_close(ls[j]) && top) {
+            size_t o = stack[--top];
+            dist[o] = j - o;
+        }
     }
-    return (size_t)-1;
+    free(stack);
+    return dist;
 }
 
 /* Does line j start a block that interrupts a paragraph? */
-static int interrupts(struct line *ls, size_t j, size_t n, int depth)
+static int interrupts(struct line *ls, size_t j, int depth, const size_t *qm)
 {
     struct line l = ls[j], tmp;
     struct marker m;
@@ -571,7 +582,7 @@ static int interrupts(struct line *ls, size_t j, size_t n, int depth)
         return 1;
     if (list_marker(l, &m) && m.content < l.n && (!m.ordered || m.start == 1))
         return 1;
-    if (is_quote_open(l, &tmp) && find_quote_close(ls, j + 1, n) != (size_t)-1)
+    if (qm[j] && is_quote_open(l, &tmp))
         return 1;
     return 0;
 }
@@ -679,7 +690,7 @@ static void render_list(struct ioi_buf *out, struct line *ls, size_t *ip, size_t
         ioi_buf_puts(out, first.ordered ? "<ol>\n" : "<ul>\n");
     for (size_t it = 0; it < items; it++) {
         ioi_buf_puts(out, "<li>");
-        render_blocks(out, buf + starts[it], starts[it + 1] - starts[it], depth + 1, !loose);
+        render_blocks(out, buf + starts[it], starts[it + 1] - starts[it], depth + 1, !loose, NULL);
         ioi_buf_puts(out, "</li>\n");
     }
     ioi_buf_puts(out, first.ordered ? "</ol>\n" : "</ul>\n");
@@ -688,11 +699,16 @@ static void render_list(struct ioi_buf *out, struct line *ls, size_t *ip, size_t
     *ip = i;
 }
 
-static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int depth, int tight)
+/* QM: quote_matches for these lines, or NULL to compute it here. */
+static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int depth, int tight,
+                          const size_t *qm)
 {
     size_t i = 0;
     struct line tmp;
     struct marker m;
+    size_t *own = NULL;
+    if (!qm)
+        qm = own = quote_matches(ls, n);
     while (i < n) {
         struct line l = ls[i];
         if (is_blank_line(l)) {
@@ -712,9 +728,9 @@ static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int de
             i++;
             continue;
         }
-        if (depth < MAX_DEPTH && is_quote_open(l, &tmp)) {
-            size_t j = find_quote_close(ls, i + 1, n);
-            if (j != (size_t)-1) {
+        if (depth < MAX_DEPTH && qm[i] && is_quote_open(l, &tmp)) {
+            size_t j = i + qm[i];
+            {
                 ioi_buf_puts(out, "<blockquote class=\"bbquote\">");
                 if (tmp.n) {
                     int linkable = tmp.n <= MAX_NAME;
@@ -734,7 +750,7 @@ static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int de
                 } else {
                     ioi_buf_putc(out, '\n');
                 }
-                render_blocks(out, ls + i + 1, j - i - 1, depth + 1, 0);
+                render_blocks(out, ls + i + 1, j - i - 1, depth + 1, 0, qm + i + 1);
                 ioi_buf_puts(out, "</blockquote>\n");
                 i = j + 1;
                 continue;
@@ -752,7 +768,7 @@ static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int de
                 sub[k - i] = (struct line){ls[k].s + p, ls[k].n - p};
             }
             ioi_buf_puts(out, "<blockquote>\n");
-            render_blocks(out, sub, j - i, depth + 1, 0);
+            render_blocks(out, sub, j - i, depth + 1, 0, NULL);
             ioi_buf_puts(out, "</blockquote>\n");
             free(sub);
             i = j;
@@ -765,7 +781,7 @@ static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int de
         /* paragraph */
         struct ioi_buf para = {0};
         size_t j = i;
-        while (j < n && !is_blank_line(ls[j]) && (j == i || !interrupts(ls, j, n, depth))) {
+        while (j < n && !is_blank_line(ls[j]) && (j == i || !interrupts(ls, j, depth, qm))) {
             struct line t = trimmed(ls[j]);
             if (j > i)
                 ioi_buf_putc(&para, '\n');
@@ -779,6 +795,7 @@ static void render_blocks(struct ioi_buf *out, struct line *ls, size_t n, int de
         free(para.p);
         i = j;
     }
+    free(own);
 }
 
 void ioi_prose_render(struct ioi_buf *out, const char *src, size_t len)
@@ -799,7 +816,7 @@ void ioi_prose_render(struct ioi_buf *out, const char *src, size_t len)
             start = i + 1;
         }
     }
-    render_blocks(out, ls, n, 0, 0);
+    render_blocks(out, ls, n, 0, 0, NULL);
     free(ls);
     free(norm.p);
 }

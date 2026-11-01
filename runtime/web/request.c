@@ -272,10 +272,35 @@ int ioi_same_origin_check(const char *host, const char *origin, const char *refe
     return strcmp(want, got) == 0;
 }
 
+int ioi_host_allowed(const char *list, const char *host)
+{
+    if (!host || !*host)
+        return 0;
+    size_t hl = strlen(host);
+    size_t bare = host[0] == '[' ? strcspn(host, "]") + 1 : strcspn(host, ":");
+    if (bare > hl)
+        bare = hl;
+    for (const char *p = list; *p;) {
+        while (*p == ',' || *p == ' ')
+            p++;
+        size_t n = strcspn(p, ", ");
+        /* exact host:port, or the entry equals the host part (no port) */
+        if (n && ((n == hl && !strncasecmp(p, host, n)) ||
+                  (n == bare && !strncasecmp(p, host, n))))
+            return 1;
+        p += n;
+    }
+    return 0;
+}
+
 int ioi_web_same_origin(void)
 {
     ioi_web_init();
-    return ioi_same_origin_check(getenv("HTTP_HOST"), getenv("HTTP_ORIGIN"),
+    const char *host = getenv("HTTP_HOST");
+    const char *hosts = getenv("IOI_HOSTS");
+    if (hosts && *hosts && !ioi_host_allowed(hosts, host))
+        return 0;
+    return ioi_same_origin_check(host, getenv("HTTP_ORIGIN"),
                                  getenv("HTTP_REFERER"));
 }
 
