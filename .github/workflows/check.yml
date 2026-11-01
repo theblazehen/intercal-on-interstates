@@ -17,8 +17,8 @@ jobs:
   # The site promised "all you need is a C compiler": build and install with nothing else.
   plain-install:
     runs-on: ubuntu-latest
+    steps:
       - uses: actions/checkout@v7
-      - uses: actions/checkout@v4
       - run: ./configure --prefix="$RUNNER_TEMP/ioi" && make -j"$(nproc)" && make install
       - run: |
           cd examples/site

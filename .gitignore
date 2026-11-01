@@ -5,3 +5,4 @@ config.mk
 .gross_secret
 ioi-*.tar.gz
 apps/please-discuss/forum
+.taste-skill/
