@@ -60,6 +60,8 @@ A shared subroutine, called first thing by every handler (`DO (900) NEXT`), sets
 | `.103` | `#1` if admin, else `#0` |
 | `.104` | active nav tab: `#1` board index, `#2` latest, `#3` search, `#0` otherwise. The Latest page **must** set `#2`: `_topic_row.html` shows category badges only then |
 | `;100` | topic page only: `;100 SUB k` is `#1` when the signed-in user PLEASEd post row k of the page, else `#0`. Always dimension it to at least 1 (`;100 <- #20` works) and zero it, even for guests |
+| `,101` | the **return path** (§1.10): where Sign in / Register links, and the guard that sends a guest to `/login`, will bring the reader back to. Built by each page from fixed text and numbers; on `/login` and `/register` it is the validated `next` field. May be empty |
+| `.105` | the **notice** code (§1.10), 1–15, from the `done` field; `#0` for none |
 
 Session subroutine outline:
 
@@ -80,7 +82,7 @@ The `HOW MANY … BEYOND` trick gives 1/0 flags without comparisons in INTERCAL.
 
 Every `READ OUT … WITH TEMPLATE` extracts `;49221` into `,144` `,143` … and `;144` `;143` …,
 and template loops overwrite `,144` downwards and `.144`. Treat `,120`–`,144`, `;120`–`;144` and
-`.144` as scratch that a READ OUT destroys. `,100`–`,104`, `:100`, `.101`–`.104`, `;100` are the
+`.144` as scratch that a READ OUT destroys. `,100`–`,104`, `:100`, `.101`–`.105`, `;100` are the
 template globals above. Fill `;49221` fresh before each READ OUT (whole-array assignment from
 a LIST, then `STASH ;49221 SUB #k <- …` for the rest; STASH-assign extends the array).
 
@@ -110,13 +112,15 @@ a LIST, then `STASH ;49221 SUB #k <- …` for the rest; STASH-assign extends the
 
 | Template | Location | `;49221` |
 |---|---|---|
-| `to_root.txt` | `/` | none (`#0`) |
-| `to_login.txt` | `/login` | none |
-| `to_topic.txt` | `/t/{{,144}}` | [topic id] |
-| `to_post.txt` | `/p/{{,144}}` (permalink; GET /p/:id then lands on the right page) | [post id] |
-| `to_topic_page.txt` | `/t/{{,144}}?page={{,143}}#p{{,142}}` | [topic id, page, post id] |
-| `to_category.txt` | `/c/{{,144}}` | [category id] |
-| `to_user.txt` | `/u/{{,144}}` | [user name] |
+| `to_login.txt` | `/login?next={{,101}}` | none (reads the return path `,101`) |
+| `to_next.txt` | `{{,144}}` — the whole Location, built and validated in forum.i (§1.10) | [path] |
+| `to_topic.txt` | `/t/{{,144}}?done={{,143}}` | [topic id, notice] |
+| `to_post.txt` | `/p/{{,144}}`, plus `?done={{,143}}` unless the notice is `#0` (permalink; GET /p/:id then lands on the right page) | [post id, notice] |
+| `to_topic_page.txt` | `/t/{{,144}}?page={{,143}}`, plus `&done={{,141}}` unless `#0`, then `#p{{,142}}` | [topic id, page, post id, notice] |
+| `to_user.txt` | `/u/{{,144}}?done={{,143}}` | [user name, notice] |
+
+`to_next.txt` has no static text, so the compiler's link check cannot vouch for it; that is
+why forum.i only ever puts a path through it that it built itself or that passed (730).
 
 ### 1.7 Pagination (20 per page, arithmetic via syslib)
 
@@ -156,7 +160,7 @@ Templates hide the pager when `pages IS #1` and each button when its number `IS 
 
 The framework itself answers 403 `YOU CAN'T GET THERE FROM HERE` for cross-origin requests.
 Guests asking for a GET page that needs an account (`/new`, `/settings`, quote, edit) are
-redirected to `/login` instead (`to_login.txt`).
+redirected to `/login?next=<that page>` instead (`to_login.txt`, §1.10).
 
 ### 1.9 Validation messages (form re-render, status 200)
 
@@ -179,6 +183,48 @@ Limits are bytes (`.4401`).
 
 Check in the order listed; report the first failure only. The re-rendered form keeps every
 value the user typed except passwords.
+
+### 1.10 Return path and notices
+
+**Return path.** Pages fill `,101` byte by byte (string building, labels (700)–(770)):
+
+| Page | `,101` |
+|---|---|
+| `/` | `/` |
+| `/latest`, `/c/:id`, `/t/:id` | `/latest`, `/c/N`, `/t/N`, plus `?page=N` when not on page 1 |
+| `/u/:name` | `/u/<name as requested>` |
+| `/search` | `/search` (the query is not carried: templates have no URL encoding) |
+| guards on `/new`, `/t/:id/reply`, `/p/:id/edit`, `/settings` | `/new` (`?c=N` when given), `/t/N/reply` (`?quote=N` when given), `/p/N/edit`, `/settings` |
+| `/login`, `/register` | the `next` field after (730) |
+| error pages | whatever the handler had built, often empty |
+
+Templates link `/login?next={{,101}}` and `/register?next={{,101}}`; the sign-in and register
+forms carry it in `<input type="hidden" name="next">`. (730) keeps `next` only when it is 1–1000
+bytes, starts with `/`, its second byte is neither `/` nor `\`, and every byte is printable ASCII
+33–126 other than `#` (so no CR/LF, spaces, `//host`, `/\host`, `https://…` or fragments).
+Anything else becomes empty, and an empty return path means `/`.
+
+**Notices.** After an action the redirect carries `?done=N` (or `&done=N` when the target
+already has a query); (900) reads `done`, keeps it only when it is 1–15, and puts it in `.105`;
+`_notice.html` (included by `_nav.html`) shows the matching line of a fixed table, never text
+from the request. The notice lives only in that one URL.
+
+| N | After | Text after "PLEASE NOTE:" |
+|---|---|---|
+| 1 | POST /register | you are registered and signed in. Welcome to the Interstate. |
+| 2 | POST /login | you are signed in. |
+| 3 | POST /logout | you have GIVEN UP. You are signed out. |
+| 4 | POST /new | your topic was posted. |
+| 5 | POST /t/:id/reply | your reply was posted. |
+| 6 | POST /p/:id/edit | your changes were saved. |
+| 7 | POST /p/:id/delete | the post was ABSTAINED FROM (deleted). |
+| 8 / 9 | POST /t/:id/pin | the topic is pinned to the top of its category. / the topic is no longer pinned. |
+| 10 / 11 | POST /t/:id/lock | the topic is locked. No more replies. / the topic is unlocked. Replies are open again. |
+| 12 | POST /t/:id/move | the topic was moved. |
+| 13 / 14 | POST /u/:name/role | that user is now a moderator. / that user is now a member. |
+| 15 | POST /settings | your bio was saved. |
+
+The PLEASE toggle has no notice (the button already shows its state).
 
 ---
 
@@ -404,13 +450,14 @@ The template decides per post, from `:100`, `.102` and the row:
 ### 3.5 `GET /p/:id` — permalink
 
 1. `'FROM DATABASE #8~#1$#13' HAVING #0 id` → [topic id, number]; empty → 404 NO SUCH POST.
-2. page = (number + 19) / 20. Redirect `to_topic_page.txt` with [topic id, page, id].
+2. page = (number + 19) / 20. Redirect `to_topic_page.txt` with [topic id, page, id, `done`
+   field] so a notice survives the permalink hop.
 
 Deleted posts keep working permalinks (they land on their tombstone).
 
 ### 3.6 `GET /t/:id/reply` (origin 130) — reply editor, optionally quoting → (140) mode 2
 
-1. Guest → redirect `to_login.txt`.
+1. Guest → redirect `to_login.txt` with `,101` = `/t/N/reply` (`?quote=Q` when quoting).
 2. Topic must exist (404 NO SUCH TOPIC) and not be locked (403 THIS TOPIC IS LOCKED):
    `'FROM DATABASE #7~#4$#1$#10' HAVING #0 id` → [title, category id, locked].
 3. quote = `WRITE IN :2 WITH FIELD "quote"` (0 when absent). When non-zero:
@@ -426,11 +473,11 @@ Fields: `body`, `preview`.
 2. Validate body (§1.9). On failure, or when `preview` is set: render compose
    `[#2, id, category id, title, body, message or "", #1 if preview else #0, "", "", #0, categories, id]`.
 3. Insert post `[id, me, body, now, #0, #0]` into #4; `'FROM DATABASE #3~#5' HAVING #0 id <- now`
-   (bump). Redirect `to_post.txt` with [`:4400`].
+   (bump). Redirect `to_post.txt` with [`:4400`, `#5`].
 
 ### 3.8 `GET /new` — new topic editor → (140) mode 1
 
-Guest → redirect `to_login.txt`. c = `WRITE IN .2 WITH FIELD "c"` (0 when absent; preselects).
+Guest → redirect `to_login.txt` (`,101` = `/new`, `?c=N` when given). c = `WRITE IN .2 WITH FIELD "c"` (0 when absent; preselects).
 compose params: `[#1, #0, c, "", "", "", #0, "", "", #1, categories, #0]`.
 
 ### 3.9 `POST /new` (origin 140) — create topic
@@ -440,11 +487,11 @@ Fields: `category` (number), `title`, `body`, `preview`.
 2. Validate category, title, body (§1.9). On failure or preview: render compose
    `[#1, #0, category, title, body, message or "", preview flag, "", "", #1, categories, #0]`.
 3. Insert topic `[category, me, title, now, now, #0, #0, #0]` into #3 → topic id = `:4400`;
-   insert post `[topic id, me, body, now, #0, #0]` into #4. Redirect `to_topic.txt` [topic id].
+   insert post `[topic id, me, body, now, #0, #0]` into #4. Redirect `to_topic.txt` [topic id, `#4`].
 
 ### 3.10 `GET /p/:id/edit` (origin 130) — edit editor → (140) mode 3
 
-1. Guest → redirect `to_login.txt`.
+1. Guest → redirect `to_login.txt` (`,101` = `/p/N/edit`).
 2. `'FROM DATABASE #8~#1$#2$#8$#13$#14$#16$#11' HAVING #0 id` → [topic id, author id, body,
    number, topic title, category id, deleted]; missing or deleted → 404 NO SUCH POST.
 3. Not author and not `.102` → 403 THAT POST IS NOT YOURS.
@@ -457,7 +504,7 @@ Fields: `title` (read only when editing the opening post), `body`, `preview`.
 2. Validate (title only when number = 1). On failure or preview: render compose
    `[#3, id, category id, title (typed, or the topic title), body, message or "", preview flag, "", "", title editable flag, categories, topic id]`.
 3. `'FROM DATABASE #4~#3$#5' HAVING #0 id <- [body, now]` (body + edited time); when number = 1
-   also `'FROM DATABASE #3~#3' HAVING #0 topic id <- title`. Redirect `to_post.txt` [id].
+   also `'FROM DATABASE #3~#3' HAVING #0 topic id <- title`. Redirect `to_post.txt` [id, `#6`].
 
 Editing stays allowed in locked topics.
 
@@ -467,7 +514,7 @@ Editing stays allowed in locked topics.
 2. Author → deleted = 1; else moderator → deleted = 2; else 403 THAT POST IS NOT YOURS.
    `'FROM DATABASE #4~#6' HAVING #0 id <- flag`.
 3. `FORGET 'FROM DATABASE #5' HAVING #1 id` (its PLEASEs go with it).
-4. Redirect `to_post.txt` [id].
+4. Redirect `to_post.txt` [id, `#7`].
 
 ### 3.13 `POST /p/:id/please` (origin 130) — PLEASE toggle
 
@@ -475,12 +522,13 @@ Editing stays allowed in locked topics.
    → 404 NO SUCH POST. Author = me → 403 YOU CANNOT PLEASE YOURSELF….
 2. `'FROM DATABASE #5~#0' HAVING #1 id HAVING #2 me HOW MANY`: 1 → `FORGET 'FROM DATABASE #5' HAVING #1 id HAVING #2 me`;
    0 → insert `[id, me, now]` into #5.
-3. Redirect `to_post.txt` [id].
+3. Redirect `to_post.txt` [id, `#0`] (no notice).
 
 ### 3.14–3.16 Moderation (origin 130): pin, lock, move
 
 All: guest → 403 PLEASE SIGN IN FIRST; not `.102` → 403 ONLY MODERATORS MAY DO THAT; topic
-missing → 404 NO SUCH TOPIC; redirect `to_topic.txt` [id].
+missing → 404 NO SUCH TOPIC; redirect `to_topic.txt` [id, notice]: pin `#8`/unpin `#9`,
+lock `#10`/unlock `#11`, move `#12`.
 - `POST /t/:id/pin`, field `pinned`: `#1` if it is 1, else `#0` → `'FROM DATABASE #3~#6' HAVING #0 id <- v`.
 - `POST /t/:id/lock`, field `locked`: same → column #7.
 - `POST /t/:id/move`, field `category`: must exist (404 NO SUCH CATEGORY) → column #1.
@@ -502,16 +550,16 @@ Field `role`. Guest → 403 PLEASE SIGN IN FIRST. Not `.103` → 403 ONLY THE AD
 `'FROM DATABASE #0~#0$#3$#1' HAVING #1 name` → [id, role, canonical name]; missing → 404 NO SUCH
 USER. id = me or role = 3 → 403 ADMINS CANNOT BE PROMOTED OR DEMOTED. role field not 1 or 2 →
 400 THAT ROLE DOES NOT EXIST. `'FROM DATABASE #0~#3' HAVING #0 id <- role`. Redirect `to_user.txt`
-[canonical name].
+[canonical name, `#13` promoted / `#14` demoted].
 
 ### 3.19 `GET /settings` → (180) settings.html
 
-Guest → redirect `to_login.txt`. `[ 'FROM DATABASE #0~#5' HAVING #0 me, "", #0 ]` (bio, error, preview).
+Guest → redirect `to_login.txt` (`,101` = `/settings`). `[ 'FROM DATABASE #0~#5' HAVING #0 me, "", #0 ]` (bio, error, preview).
 
 ### 3.20 `POST /settings` (origin 180)
 
 Fields `bio`, `preview`. Guest → 403. Too long, or preview → render `[bio, message or "", preview flag]`.
-Else `'FROM DATABASE #0~#5' HAVING #0 me <- bio`; redirect `to_user.txt` [`,100`].
+Else `'FROM DATABASE #0~#5' HAVING #0 me <- bio`; redirect `to_user.txt` [`,100`, `#15`].
 
 ### 3.21 `GET /search` → (190) search.html
 
@@ -528,25 +576,28 @@ Pagination buttons are GET forms with `q` and `page`, so the browser encodes the
 
 ### 3.22 `GET /login` → (150) login.html
 
-Signed in → redirect `to_root.txt`. Else `[ "", "" ]` (error, name).
+`next` → `,101` via (730). Signed in → redirect to the return path (`to_next.txt`, `/` when
+empty, no notice). Else `[ "", "" ]` (error, name); the form carries `,101`.
 
 ### 3.23 `POST /login` (origin 150)
 
-Fields `name`, `password`. `'FROM DATABASE #0~#0' HAVING #1 ,name HAVING #2 ,password HOW MANY`
+Fields `name`, `password`, `next` (via (730)). `'FROM DATABASE #0~#0' HAVING #1 ,name HAVING #2 ,password HOW MANY`
 (PASSWORD column: HAVING verifies the hash) = 0 → render `[ "E401 THAT NAME AND PASSWORD DO NOT MINGLE", name ]`.
-Else id = `'FROM DATABASE #0~#0' HAVING #1 ,name`; `READ OUT id WITH SESSION`; redirect `to_root.txt`.
+Else id = `'FROM DATABASE #0~#0' HAVING #1 ,name`; `READ OUT id WITH SESSION`; redirect `to_next.txt`
+to the return path (or `/`) with notice 2.
 
-### 3.24 `GET /register` → (160) register.html; signed in → redirect `to_root.txt`. `[ "", "" ]`.
+### 3.24 `GET /register` → (160) register.html; as GET /login: `next` via (730), signed in → redirect to the return path. `[ "", "" ]`.
 
 ### 3.25 `POST /register` (origin 160)
 
-Fields `name`, `password`, `confirm`. Validate (§1.9) → on failure render `[ message, name ]`.
+Fields `name`, `password`, `confirm`, `next` (via (730)). Validate (§1.9) → on failure render `[ message, name ]`.
 role = `#3` if `'FROM DATABASE #0~#0' HAVING #0 BEYOND #0 HOW MANY` = 0 (first account is admin), else `#1`.
-Insert `[name, password, role, now, ""]` into #0; `READ OUT :4400 WITH SESSION`; redirect `to_root.txt`.
+Insert `[name, password, role, now, ""]` into #0; `READ OUT :4400 WITH SESSION`; redirect `to_next.txt`
+to the return path (or `/`) with notice 1.
 
 ### 3.26 `POST /logout`
 
-`READ OUT #0 WITH SESSION`; redirect `to_root.txt`. ("GIVE UP" in the header.)
+`READ OUT #0 WITH SESSION`; redirect `to_next.txt` to `/?done=3`. ("GIVE UP" in the header.)
 
 ### 3.27 `*` — catch-all
 
@@ -573,8 +624,8 @@ Error (404) `[ #404, "NO SUCH PAGE" ]`.
 | error.html | 1 `,144` number · 2 `,143` message |
 
 Partials: `_head.html` (inside `<head>` after `<title>`), `_nav.html` (reads `:100`, `,100`,
-`.104`), `_foot.html`, `_topic_row.html` (topic row shape, inside a loop), `_post_owner.html`
-(Edit/Delete, topic.html only).
+`.104`, `,101`; includes `_notice.html`, which reads `.105`), `_foot.html`, `_topic_row.html`
+(topic row shape, inside a loop), `_post_owner.html` (Edit/Delete, topic.html only).
 
 ### Static link check summary
 
@@ -601,8 +652,9 @@ Partials: `_head.html` (inside `<head>` after `<title>`), `_nav.html` (reads `:1
 
 - **Register → first admin.** POST /register on an empty users table gives role 3. With the
   seed loaded, `admin` (id 1) already is the admin and new accounts are members.
-- **Sign in / out.** POST /login sets the session to the user id; "GIVE UP" posts /logout,
-  which sets it to 0. A session naming a vanished user is cleared by (900).
+- **Sign in / out.** POST /login sets the session to the user id and returns to the page the
+  Sign in link came from (`next`, §1.10) with "PLEASE NOTE: you are signed in."; "GIVE UP"
+  posts /logout, which sets it to 0. A session naming a vanished user is cleared by (900).
 - **Compose, preview, validate.** Every editor POST re-renders compose.html at (140) with the
   user's text when `preview` is set or validation fails (message in `,139`, preview flag in
   `,138`); otherwise it writes and redirects to the new or edited post.

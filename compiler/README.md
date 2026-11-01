@@ -75,7 +75,8 @@ Deviations (all features outside INTERCAL-72 + COME FROM):
   `|`, `^` and `@` give E997, as C-INTERCAL does in base 2.
 - Programs in other bases (`.3i` … `.7i`) are compiled as base 2; C-INTERCAL's many other
   command-line options (`-m`, `-e`, `-a`, `-C`, `-y`, …) do not exist.
-- When the C compiler fails, `ick` prints the command and E778.
+- When the C compiler fails, `ick` prints a single `ICL778I UNEXPLAINED COMPILER BUG: THE C
+  COMPILER FAILED` (or `WAS NOT FOUND`) naming the command, and exits with 778 mod 256.
 
 ## Interstates (`-s`)
 
@@ -142,9 +143,10 @@ array dimensions it as usual (`#0` is still E240); assigning BYTES fills a tail 
 
 At start, when `ioi_web_active()`, the route COME FROMs are tried in source order (catch-all
 `"*"` last); the first match fills `;4400` (if the program mentions it) and execution
-continues after that COME FROM. No match → E404 page (HTTP 404). A route whose origin is not
-16000, and every non-GET/HEAD request, must pass `ioi_web_same_origin()`, else E403 (HTTP
-403). Run from a shell, the program runs top-down and route COME FROMs are no-ops.
+continues after that COME FROM. No match → E404 page (HTTP 404, "ON THE WAY TO 16000"). A
+route whose origin is not 16000, and every non-GET/HEAD request, must pass
+`ioi_web_same_origin()`, else E403 (HTTP 403, "ON THE WAY TO" the route's origin label).
+Run from a shell, the program runs top-down and route COME FROMs are no-ops.
 
 **Origin rule** (compile time): `L` must be 16000 or the label of a `READ OUT … WITH
 TEMPLATE` statement (E400).

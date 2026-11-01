@@ -20,4 +20,15 @@
     e.preventDefault();
     if (t.form.requestSubmit) t.form.requestSubmit(go); else go.click();
   });
+
+  // Quote-reply: the editor arrives pre-filled with a [quote] block, so put
+  // the caret after it, ready to type the answer.
+  if (/[?&]quote=/.test(location.search)) {
+    var ta = document.querySelector("textarea[name=body]");
+    if (ta) {
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+      ta.scrollTop = ta.scrollHeight;
+    }
+  }
 })();

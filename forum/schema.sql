@@ -251,8 +251,8 @@ FROM users u;
 -- haystack = title + body for a topic's opening post, body alone for
 -- replies, so one `HAVING #13 SOMEWHERE q` finds topics by title and posts
 -- by body. Always add `HAVING #7 #0` (live posts only). excerpt is the first
--- 280 bytes of the raw markdown on one line, minus ** and ``` (rendered
--- escaped, not as prose).
+-- 280 bytes of the raw markdown on one line, minus ** and backticks, with
+-- [quote="x"]…[/quote] spelled x wrote: “…” (rendered escaped, not as prose).
 CREATE VIEW post_index AS
 SELECT
   p.id                                                     AS id,
@@ -262,8 +262,10 @@ SELECT
   u.name                                                   AS author,
   p.created                                                AS created,
   CASE WHEN p.deleted = 0
-       THEN replace(replace(replace(replace(substr(p.body, 1, 280),
-              char(13), ''), char(10), ' '), '**', ''), '```', '')
+       THEN replace(replace(replace(replace(replace(replace(replace(replace(
+              substr(p.body, 1, 280),
+              char(13), ''), char(10), ' '), '**', ''), '```', ''), '`', ''),
+              '[quote="', ''), '"]', ' wrote: “'), '[/quote]', '” ')
        ELSE '' END                                         AS excerpt,
   p.deleted                                                AS deleted,
   t.category_id                                            AS category_id,

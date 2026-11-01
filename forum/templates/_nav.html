@@ -1,5 +1,7 @@
 {{NOTE Site header. Included by every page, so every link here targets a 16000-origin route.
-  Reads program variables: :100 user id (0 = guest), ,100 user name, .104 active tab (1 board, 2 latest, 3 search).}}
+  Reads program variables: :100 user id (0 = guest), ,100 user name, .104 active tab (1 board, 2 latest, 3 search),
+  ,101 the return path for Sign in / Register (built by forum.i from fixed text and numbers; may be empty),
+  .105 the notice code shown by _notice.html.}}
 <a class="skip" href="#main">Skip to content</a>
 <header class="topbar">
   <div class="wrap topbar-in">
@@ -36,9 +38,10 @@
       </form>
       {{REINSTATE}}
       {{ABSTAIN FROM :100}}
-      <a class="btn btn-quiet" href="/login">Sign in</a>
-      <a class="btn btn-go" href="/register">Register</a>
+      <a class="btn btn-quiet" href="/login?next={{,101}}">Sign in</a>
+      <a class="btn btn-go" href="/register?next={{,101}}">Register</a>
       {{REINSTATE}}
     </div>
   </div>
 </header>
+{{DO "_notice.html" NEXT}}

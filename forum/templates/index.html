@@ -31,8 +31,8 @@
           <h3 class="cat-name"><a href="/c/{{,144}}">{{,141}}</a></h3>
           <p class="cat-desc">{{,140}}</p>
         </div>
-        <div class="stat stat-topics"><span class="num" title="{{,138}} topics">{{,138 IN ROMAN}}</span> <span class="stat-lbl">topics</span></div>
-        <div class="stat stat-posts"><span class="num" title="{{,137}} posts">{{,137 IN ROMAN}}</span> <span class="stat-lbl">posts</span></div>
+        <div class="stat stat-topics"><span class="num" title="{{,138}} topic{{ABSTAIN FROM ,138 IS #1}}s{{REINSTATE}}">{{,138 IN ROMAN}}</span> <span class="stat-lbl">topic{{ABSTAIN FROM ,138 IS #1}}s{{REINSTATE}}</span></div>
+        <div class="stat stat-posts"><span class="num" title="{{,137}} post{{ABSTAIN FROM ,137 IS #1}}s{{REINSTATE}}">{{,137 IN ROMAN}}</span> <span class="stat-lbl">post{{ABSTAIN FROM ,137 IS #1}}s{{REINSTATE}}</span></div>
         <div class="cat-last">
 {{ABSTAIN FROM ,136 IS #0}}
           <a class="face face-s" href="/u/{{,134}}" tabindex="-1" aria-hidden="true">{{,134 AS FACE}}</a>
@@ -51,6 +51,9 @@
     </ol>
   </section>
 {{REINSTATE}}
+{{ABSTAIN FROM ;144}}
+  <p class="empty">No categories yet. This board has ABSTAINED FROM having any; they live in the database.</p>
+{{REINSTATE}}
   <section class="stats" aria-label="Forum statistics">
     <h2 class="stats-title">Who is here</h2>
     <p>
@@ -59,7 +62,12 @@
       <span title="{{;143 SUB #3 IN ARABIC}}"><b>{{;143 SUB #3}}</b> posts</span>
       <span title="{{;143 SUB #4 IN ARABIC}}"><b>{{;143 SUB #4}}</b> PLEASEs</span>
     </p>
+{{ABSTAIN WITHOUT ;143 SUB #5}}
     <p>PLEASE welcome our newest member, <a href="/u/{{;143 SUB #5}}">{{;143 SUB #5}}</a>.</p>
+{{REINSTATE}}
+{{ABSTAIN FROM ;143 SUB #5}}
+    <p>No members yet. The first account to <a href="/register">register</a> becomes the admin.</p>
+{{REINSTATE}}
   </section>
 </main>
 {{DO "_foot.html" NEXT}}

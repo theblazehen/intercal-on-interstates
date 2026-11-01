@@ -170,11 +170,13 @@ void ioi_tpl_item(const struct ioi_tpl_vars *tv, uint32_t elem, uint32_t index);
 /* Initialise the web runtime and install error/exit hooks that render the
  * error page / send the buffered response. */
 void ioi_s_init(void);
-/* Route dispatch failure (E404) / origin failure (E403): error page, exit. */
+/* Route dispatch failure (E404, "ON THE WAY TO 16000") / origin failure
+ * (E403, "ON THE WAY TO" the route's origin label): error page, exit. */
 _Noreturn void ioi_s_no_route(void);
-_Noreturn void ioi_s_forbidden(void);
-/* URL security for the matched route (SPEC.md §2.4). */
-void ioi_s_check_origin(int origin_is_16000);
+_Noreturn void ioi_s_forbidden(int origin);
+/* URL security for the matched route whose COME FROM names ORIGIN
+ * (SPEC.md §2.4). */
+void ioi_s_check_origin(int origin);
 /* DB status check: E420/E421 with ioi_db_errmsg() detail. */
 void ioi_s_db_check(int status);
 /* STASH ;n INTO DATABASE #t; *rowid (may be NULL) receives the row id. */

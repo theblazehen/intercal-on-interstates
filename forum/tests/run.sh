@@ -104,6 +104,10 @@ post_file() {
 }
 views() { grep -o 'title="[0-9]*">[^<]*</span> views' "$B" | sed 's/title="\([0-9]*\)".*/\1/'; }
 signin() { post "$1" /login "name=$2" "password=$3"; }
+# follow WHO: follow 303s (at most four) from the last response
+follow() { n=0; while [ "$CODE" = 303 ] && [ $n -lt 4 ]; do get "$1" "$LOC"; n=$((n + 1)); done; }
+# noted TEXT: the page shows the PLEASE NOTE banner with TEXT
+noted() { has "$B" "PLEASE NOTE:</b> $1"; }
 
 # ------------------------------------------------------------------ build
 check "forum.i compiles (static link check, politeness)" build/ick -s -b -o "$TMP/forum" forum/forum.i
@@ -119,8 +123,10 @@ check "empty: board index 200" is "$CODE" 200
 check "empty: board index renders" has "$B" "PLEASE DISCUSS"
 post first /register "name=Founder" "password=correct-horse" "confirm=correct-horse"
 check "empty: register 303" is "$CODE" 303
-check "empty: register lands on /" is "$LOC" /
+check "empty: register lands on / with a notice" is "$LOC" "/?done=1"
 check "empty: register signs in" has "$H" "ioi_session="
+follow first
+check "notice: registered" noted "you are registered and signed in."
 get first /u/founder
 check "empty: first account is admin" has "$B" 'class="role role-3"'
 check "empty: profile is case-insensitive" has "$B" ">Founder <span"
@@ -155,7 +161,7 @@ check "latest: topics" has "$B" "Post your terminal setup"
 get guest /c/2
 check "category: 200" is "$CODE" 200
 check "category: its topics" has "$B" "YOU CAN ONLY COME FROM A PAGE"
-check "category: sign in to post" has "$B" 'href="/login"'
+check "category: sign in to post" has "$B" 'href="/login?next=/c/2"'
 get guest /c/99
 check "category: missing is 404" is "$CODE" 404
 check "category: 404 in voice" has "$B" "E404 NO SUCH CATEGORY"
@@ -277,22 +283,94 @@ get tester /u/tester
 check "register: seeded forum makes members" has "$B" 'class="role role-1"'
 get tester /login
 check "login: signed in users are sent home" is "$CODE" 303
+get tester "/login?next=/c/2"
+check "login: signed in users go straight to the return path" is "$LOC" /c/2
 post tester /logout
-check "logout: 303 to /" is "$LOC" /
+check "logout: 303 to / with a notice" is "$LOC" "/?done=3"
 check "logout: clears the cookie" has "$H" "Max-Age=0"
+follow tester
+check "notice: signed out" noted "you have GIVEN UP. You are signed out."
 get tester /
-check "logout: signed out" has "$B" 'href="/login"'
+check "logout: signed out" has "$B" 'href="/login?next=/"'
+check "notice: gone after navigating" hasnt "$B" 'class="flash"'
 signin tester tester wrong-password
 check "login: wrong password 200" is "$CODE" 200
 check "login: wrong password message" has "$B" "E401 THAT NAME AND PASSWORD DO NOT MINGLE"
 check "login: name kept" has "$B" 'value="tester"'
 signin tester TESTER long-enough
-check "login: 303" is "$CODE" 303
+check "login: 303 to / with a notice" is "$LOC" "/?done=2"
+follow tester
+check "notice: signed in" noted "you are signed in."
 get tester /
 check "login: signed in" has "$B" '<span class="me-name">tester</span>'
 signin mod spark_ears rabbit-ears
 signin admin admin please-give-up
 signin other come_from computed-come-from
+
+# ---- the return path (next): carried by links, validated on sign-in
+get guest "/t/12?page=2"
+check "next: nav Sign in carries the page" has "$B" 'href="/login?next=/t/12?page=2"'
+check "next: nav Register carries it too" has "$B" 'href="/register?next=/t/12?page=2"'
+check "next: the reply prompt carries it" has "$B" 'Want to join in?</span> <a href="/login?next=/t/12?page=2"'
+get guest /c/2
+check "next: Sign in to post carries the category" has "$B" 'href="/login?next=/c/2"'
+get guest /u/spark_ears
+check "next: profiles" has "$B" 'href="/login?next=/u/spark_ears"'
+get guest "/login?next=/t/6"
+check "next: kept in the sign-in form" has "$B" 'name="next" value="/t/6"'
+check "next: carried on to Register" has "$B" 'href="/register?next=/t/6"'
+get guest "/register?next=/t/6"
+check "next: kept in the register form" has "$B" 'name="next" value="/t/6"'
+check "next: carried back to Sign in" has "$B" 'href="/login?next=/t/6"'
+get guest "/login?next=//evil.example"
+check "next: //host dropped from the form" has "$B" 'name="next" value=""'
+nx() { post nx /login "name=newbie" "password=hello-world" "next=$1"; }
+nx /t/6
+check "next: sign-in returns to the page" is "$LOC" "/t/6?done=2"
+follow nx
+check "next: lands there" has "$B" "<title>ActiveCassette"
+check "next: with the signed-in notice" noted "you are signed in."
+nx "/t/12?page=2"
+check "next: a query gets &done" is "$LOC" "/t/12?page=2&done=2"
+nx "/new?c=3"
+check "next: /new?c=3" is "$LOC" "/new?c=3&done=2"
+nx "//evil.example"
+check "next: //evil.example rejected" is "$LOC" "/?done=2"
+nx "https://evil.example"
+check "next: https://evil.example rejected" is "$LOC" "/?done=2"
+nx '/\evil.example'
+check "next: /\\evil.example rejected" is "$LOC" "/?done=2"
+nx "evil.example/t/1"
+check "next: no leading slash rejected" is "$LOC" "/?done=2"
+nx "/a b"
+check "next: spaces rejected" is "$LOC" "/?done=2"
+nx "/t/6#p17"
+check "next: fragments rejected" is "$LOC" "/?done=2"
+nx ""
+check "next: empty means /" is "$LOC" "/?done=2"
+send nx -H "Origin: $U" --data "name=newbie&password=hello-world&next=/t/6%0D%0ASet-Cookie:%20x=1" "$U/login"
+check "next: CR/LF rejected" is "$LOC" "/?done=2"
+check "next: no header injection" hasnt "$H" "x=1"
+get nx "/login?next=/c/2"
+check "next: signed in, GET /login goes there" is "$LOC" /c/2
+get guest "/new?c=2"
+check "next: /new bounces with its return path" is "$LOC" "/login?next=/new?c=2"
+post bounce /login "name=newbie" "password=hello-world" "next=${LOC#/login?next=}"
+check "next: and comes back after sign-in" is "$LOC" "/new?c=2&done=2"
+follow bounce
+check "next: to the editor, category kept" has "$B" '<option value="2" selected>'
+post returner /register "name=returner" "password=long-enough" "confirm=long-enough" "next=/c/4"
+check "next: register returns too" is "$LOC" "/c/4?done=1"
+follow returner
+check "notice: registered, on the return page" noted "you are registered and signed in."
+get guest "/?done=99"
+check "notice: codes outside the table show nothing" hasnt "$B" 'class="flash"'
+get guest "/?done=65538"
+check "notice: high bits show nothing" hasnt "$B" 'class="flash"'
+get guest "/?done=%3Cscript%3E"
+check "notice: text is never echoed" hasnt "$B" 'class="flash"'
+get guest "/?done=99999999999"
+check "notice: absurd codes are harmless" is "$CODE" 200
 
 # ---- guests
 post guest /new "category=2" "title=x" "body=y"
@@ -301,9 +379,13 @@ check "guest: sign in first" has "$B" "E403 PLEASE SIGN IN FIRST"
 post guest /t/6/reply "body=hello"
 check "guest: reply is 403" has "$B" "E403 PLEASE SIGN IN FIRST"
 get guest /new
-check "guest: /new goes to /login" is "$LOC" /login
+check "guest: /new goes to /login, coming back" is "$LOC" "/login?next=/new"
 from guest /t/6 "/t/6/reply?quote=17"
-check "guest: quote goes to /login" is "$LOC" /login
+check "guest: quote goes to /login, coming back" is "$LOC" "/login?next=/t/6/reply?quote=17"
+from guest /t/6 /p/17/edit
+check "guest: edit goes to /login, coming back" is "$LOC" "/login?next=/p/17/edit"
+get guest /settings
+check "guest: settings goes to /login, coming back" is "$LOC" "/login?next=/settings"
 
 # ---- new topic: editor, validation, preview, create
 get tester "/new?c=2"
@@ -344,7 +426,10 @@ post tester /new "category=2" "title=<script>alert(1)</script> & co" \
     "body=Hello *world*. <img src=x onerror=alert(1)> [x](javascript:alert(3)) @spark_ears"
 check "new: create 303" is "$CODE" 303
 T=${LOC#/t/}
-check "new: lands on the topic ($LOC)" is "$LOC" "/t/$T"
+T=${T%%\?*}
+check "new: lands on the topic with a notice ($LOC)" is "$LOC" "/t/$T?done=4"
+follow tester
+check "notice: topic posted" noted "your topic was posted."
 get tester "/t/$T"
 check "new: topic 200" is "$CODE" 200
 check "xss: title escaped" has "$B" "&lt;script&gt;alert(1)&lt;/script&gt; &amp; co"
@@ -362,7 +447,12 @@ check "new: listed in its category" has "$B" "&lt;script&gt;alert(1)"
 post tester "/t/$T/reply" "body=A reply with \`code\`"
 check "reply: 303" is "$CODE" 303
 P2=${LOC#/p/}
-check "reply: lands on its permalink" is "$LOC" "/p/$P2"
+P2=${P2%%\?*}
+check "reply: lands on its permalink with a notice" is "$LOC" "/p/$P2?done=5"
+get tester "$LOC"
+check "reply: the notice survives the permalink" is "$LOC" "/t/$T?page=1&done=5#p$P2"
+follow tester
+check "notice: reply posted" noted "your reply was posted."
 get tester "/p/$P2"
 check "reply: permalink page" is "$LOC" "/t/$T?page=1#p$P2"
 get tester "/t/$T"
@@ -410,7 +500,9 @@ check "edit: editor 200" is "$CODE" 200
 check "edit: body loaded" has "$B" 'A reply with `code`</textarea>'
 check "edit: a reply has no title field" hasnt "$B" 'name="title"'
 post tester "/p/$P2/edit" "body=Edited reply"
-check "edit: 303 to the post" is "$LOC" "/p/$P2"
+check "edit: 303 to the post" is "$LOC" "/p/$P2?done=6"
+follow tester
+check "notice: edit saved" noted "your changes were saved."
 get tester "/t/$T"
 check "edit: new body shown" has "$B" "<p>Edited reply</p>"
 check "edit: marked edited" has "$B" 'class="edited"'
@@ -433,7 +525,9 @@ check "edit: moderators may edit any post" is "$CODE" 200
 post other "/p/$P2/delete"
 check "delete: someone else's post is 403" has "$B" "E403 THAT POST IS NOT YOURS"
 post tester "/p/$P2/delete"
-check "delete: 303" is "$LOC" "/p/$P2"
+check "delete: 303" is "$LOC" "/p/$P2?done=7"
+follow tester
+check "notice: deleted" noted "the post was ABSTAINED FROM (deleted)."
 get tester "/t/$T"
 check "delete: author tombstone" has "$B" "ABSTAINED FROM by its author"
 check "delete: body gone" hasnt "$B" "Edited reply"
@@ -453,16 +547,23 @@ check "delete: moderator tombstone" has "$B" "ABSTAINED FROM by a moderator"
 post tester "/t/$T/pin" "pinned=1"
 check "pin: members get 403" has "$B" "E403 ONLY MODERATORS MAY DO THAT"
 post mod "/t/$T/pin" "pinned=1"
-check "pin: 303 to the topic" is "$LOC" "/t/$T"
+check "pin: 303 to the topic" is "$LOC" "/t/$T?done=8"
+follow mod
+check "notice: pinned" noted "the topic is pinned to the top of its category."
 get mod "/t/$T"
 check "pin: pinned" has "$B" 'flag-pin'
 get guest /c/2
 first=$(grep -o 'href="/t/[0-9]*"' "$B" | head -1)
 check "pin: pinned first in the category" is "$first" "href=\"/t/$T\""
 post mod "/t/$T/pin" "pinned=0"
+check "unpin: notice code" is "$LOC" "/t/$T?done=9"
+follow mod
+check "notice: unpinned" noted "the topic is no longer pinned."
 get mod "/t/$T"
 check "unpin: unpinned" hasnt "$B" 'flag-pin'
 post mod "/t/$T/lock" "locked=1"
+follow mod
+check "notice: locked" noted "the topic is locked. No more replies."
 get tester "/t/$T"
 check "lock: locked notice" has "$B" "This topic is locked"
 check "lock: no reply form" hasnt "$B" 'id="reply-body"'
@@ -477,10 +578,14 @@ check "lock: quote is 403" is "$CODE" 403
 post tester "/p/$P1/edit" "title=Still editable" "body=Edits are fine"
 check "lock: editing still works" is "$CODE" 303
 post mod "/t/$T/lock" "locked=0"
+follow mod
+check "notice: unlocked" noted "the topic is unlocked. Replies are open again."
 post tester "/t/$T/reply" "body=unlocked again"
 check "unlock: replies work again" is "$CODE" 303
 post mod "/t/$T/move" "category=4"
-check "move: 303" is "$LOC" "/t/$T"
+check "move: 303" is "$LOC" "/t/$T?done=12"
+follow mod
+check "notice: moved" noted "the topic was moved."
 get guest "/t/$T"
 check "move: now in category 4" has "$B" 'class="badge-cat" style="--cat: '
 check "move: breadcrumb" has "$B" 'href="/c/4">ABSTAINed (off-topic)</a>'
@@ -502,13 +607,17 @@ check "role: admins are fixed" has "$B" "E403 ADMINS CANNOT BE PROMOTED OR DEMOT
 post admin /u/nobody_here/role "role=2"
 check "role: missing user is 404" has "$B" "E404 NO SUCH USER"
 post admin /u/TESTER/role "role=2"
-check "role: promote 303 to the canonical name" is "$LOC" /u/tester
+check "role: promote 303 to the canonical name" is "$LOC" "/u/tester?done=13"
+follow admin
+check "notice: promoted" noted "that user is now a moderator."
 get guest /u/tester
 check "role: now a moderator" has "$B" 'class="role role-2"'
 post tester "/t/6/pin" "pinned=1"
 check "role: the new moderator can pin" is "$CODE" 303
 post tester "/t/6/pin" "pinned=0"
 post admin /u/tester/role "role=1"
+follow admin
+check "notice: demoted" noted "that user is now a member."
 get guest /u/tester
 check "role: demoted" has "$B" 'class="role role-1"'
 
@@ -516,7 +625,9 @@ check "role: demoted" has "$B" 'class="role role-1"'
 get tester /settings
 check "settings: 200" is "$CODE" 200
 post tester /settings "bio=I like <script>alert(2)</script> and **COME FROM**"
-check "settings: 303 to the profile" is "$LOC" /u/tester
+check "settings: 303 to the profile" is "$LOC" "/u/tester?done=15"
+follow tester
+check "notice: bio saved" noted "your bio was saved."
 get guest /u/tester
 check "xss: bio escaped" has "$B" "&lt;script&gt;alert(2)&lt;/script&gt;"
 check "xss: no script in bio" hasnt "$B" "<script>alert(2)"

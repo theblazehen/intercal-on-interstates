@@ -870,7 +870,7 @@ void generate(struct program *p, FILE *out, int bugline)
                 if (k4400 >= 0)
                     fprintf(out, "            ioi_hyb_assign(&VH[%d], 0, params);\n", k4400);
                 fprintf(out, "            ioi_s_check_origin(%d);\n            pc = %d;\n            goto run;\n        }\n",
-                        t->origin == 16000, N + i);
+                        t->origin, N + i);
             }
         fputs("        ioi_s_no_route();\n    }\nrun:\n", out);
     }

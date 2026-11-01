@@ -23,14 +23,14 @@ void ioi_s_init(void)
 }
 
 _Noreturn void ioi_s_no_route(void) { ioi_lose(404, 16000, NULL); }
-_Noreturn void ioi_s_forbidden(void) { ioi_lose(403, 16000, NULL); }
+_Noreturn void ioi_s_forbidden(int origin) { ioi_lose(403, origin, NULL); }
 
-void ioi_s_check_origin(int origin_is_16000)
+void ioi_s_check_origin(int origin)
 {
     const char *m = ioi_web_method();
     int safe = !strcmp(m, "GET") || !strcmp(m, "HEAD");
-    if ((!origin_is_16000 || !safe) && !ioi_web_same_origin())
-        ioi_s_forbidden();
+    if ((origin != 16000 || !safe) && !ioi_web_same_origin())
+        ioi_s_forbidden(origin);
 }
 
 void ioi_s_db_check(int status)

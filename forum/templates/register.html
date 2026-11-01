@@ -16,6 +16,7 @@
     <div class="alert" role="alert"><p class="alert-code">{{,144}}</p><p>PLEASE CORRECT SOURCE AND RESUBNIT.</p></div>
 {{REINSTATE}}
     <form action="/register" method="post">
+      <input type="hidden" name="next" value="{{,101}}">
       <div class="field">
         <label for="r-name">Username</label>
         <input id="r-name" name="name" type="text" value="{{,143}}" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="r-name-hint">
@@ -32,7 +33,7 @@
       </div>
       <button class="btn btn-go btn-wide" type="submit">Create account</button>
     </form>
-    <p class="card-foot">Already registered? <a href="/login">Sign in</a>.</p>
+    <p class="card-foot">Already registered? <a href="/login?next={{,101}}">Sign in</a>.</p>
   </div>
 </main>
 {{DO "_foot.html" NEXT}}

@@ -363,10 +363,10 @@ time { white-space: nowrap; }
 }
 
 @media (min-width: 760px) {
-  .sign-cols { display: grid; grid-template-columns: 76px 76px 260px; text-align: center; }
+  .sign-cols { display: grid; grid-template-columns: 68px 68px 300px; text-align: center; }
   .sign-cols span:last-child { text-align: left; padding-left: 12px; }
   .cat {
-    grid-template-columns: minmax(0, 1fr) 76px 76px 260px;
+    grid-template-columns: minmax(0, 1fr) 68px 68px 300px;
     grid-template-areas: "main topics posts last";
     align-items: center;
     gap: 0;
@@ -428,7 +428,7 @@ time { white-space: nowrap; }
 
 @media (min-width: 760px) {
   .tlist-head, .trow {
-    grid-template-columns: minmax(0, 1fr) 140px 70px 70px 90px;
+    grid-template-columns: minmax(0, 1fr) 100px 64px 124px 96px;
     grid-template-areas: none;
     align-items: center;
   }
@@ -440,7 +440,8 @@ time { white-space: nowrap; }
   .tlist-head span:nth-child(n+3) { text-align: center; }
   .tlist-head span:last-child { text-align: right; }
   .trow-main, .trow-posters, .trow-act { grid-area: auto; }
-  .trow > .stat { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .trow > .stat { display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; }
+  .trow > .stat .num { white-space: normal; overflow-wrap: anywhere; text-align: center; }
   .trow .stat-lbl { display: none; }
 }
 
@@ -512,6 +513,7 @@ time { white-space: nowrap; }
 .post-link { color: var(--muted); text-decoration: none; }
 .post-link:hover { color: var(--link); text-decoration: underline; }
 .edited { color: var(--muted); font-size: .78rem; font-style: italic; }
+.is-deleted .edited { display: none; }
 
 .role {
   display: inline-block;
@@ -539,6 +541,8 @@ time { white-space: nowrap; }
   margin-top: 12px; padding-top: 8px;
   border-top: 1px solid var(--line-2);
 }
+/* Guests on a post nobody has PLEASEd yet: no buttons, so no empty bar. */
+.post-actions:not(:has(.please, .act)) { display: none; }
 .post-actions-rest { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: auto; }
 .act-form { margin: 0; display: inline; }
 .act {
@@ -564,7 +568,6 @@ time { white-space: nowrap; }
 }
 .please.is-on .please-word::after { content: "D"; }
 .please.is-static { cursor: default; background: transparent; border-color: transparent; padding-left: 4px; }
-.please.is-static:hover { border-color: var(--line); color: var(--ink-2); }
 
 /* ---------- prose (rendered posts and bios) ---------- */
 
@@ -644,7 +647,7 @@ input[type="text"], input[type="password"], input[type="search"], textarea, sele
   padding: 9px 11px;
 }
 .topbar input[type="search"] { width: 100%; background: transparent; border: 0; }
-textarea { resize: vertical; min-height: 9em; line-height: 1.5; font-family: var(--mono); font-size: .9rem; }
+textarea { resize: vertical; min-height: 9em; line-height: 1.5; font-family: var(--mono); font-size: .9rem; font-variant-ligatures: none; }
 select { padding-right: 32px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible { border-color: var(--green); }
 
@@ -654,6 +657,14 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { border-color
 }
 .alert-code { font: 700 .95rem/1.35 var(--mono); }
 .alert p + p { margin-top: 2px; font-size: .88rem; }
+
+/* PLEASE NOTE: feedback after an action (?done=N), a green strip under the top bar. */
+.flash {
+  background: var(--on-bg); color: var(--green-ink);
+  border-bottom: 1px solid var(--green); box-shadow: inset 0 3px 0 var(--green);
+}
+.flash .wrap { padding-top: 11px; padding-bottom: 10px; font-size: .95rem; line-height: 1.4; }
+.flash-kicker { font: 700 .8rem/1 var(--font-sign); letter-spacing: .08em; text-transform: uppercase; margin-right: 4px; }
 
 .preview {
   background: var(--surface); border: 2px dashed var(--line); border-radius: var(--radius);

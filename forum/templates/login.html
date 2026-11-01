@@ -16,6 +16,7 @@
     <div class="alert" role="alert"><p class="alert-code">{{,144}}</p><p>PLEASE CORRECT SOURCE AND RESUBNIT.</p></div>
 {{REINSTATE}}
     <form action="/login" method="post">
+      <input type="hidden" name="next" value="{{,101}}">
       <div class="field">
         <label for="l-name">Username</label>
         <input id="l-name" name="name" type="text" value="{{,143}}" autocomplete="username" autocapitalize="none" spellcheck="false">
@@ -26,7 +27,7 @@
       </div>
       <button class="btn btn-go btn-wide" type="submit">Sign in</button>
     </form>
-    <p class="card-foot">New here? <a href="/register">Register an account</a>.</p>
+    <p class="card-foot">New here? <a href="/register?next={{,101}}">Register an account</a>.</p>
   </div>
 </main>
 {{DO "_foot.html" NEXT}}

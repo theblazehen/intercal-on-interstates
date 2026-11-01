@@ -7,17 +7,18 @@ described in [PRD.md](PRD.md).
 
 | Path | What |
 |---|---|
-| `forum.i` | the program (~1100 lines of INTERCAL, about 23 % PLEASE) |
+| `forum.i` | the program (~1400 lines of INTERCAL, about 22 % PLEASE) |
 | `schema.sql` | 6 tables + 6 read-only views; numbering is the ActiveCassette contract |
 | `seed.sql` | 10 accounts, 2 sections, 4 categories, 14 topics, 65 posts, 91 PLEASEs |
-| `templates/` | 11 page templates, 5 partials (`_*.html`), 7 redirect templates (`to_*.txt`) |
+| `templates/` | 11 page templates, 6 partials (`_*.html`), 6 redirect templates (`to_*.txt`) |
 | `public/forum.css` | all styling, hand-written, light + dark |
-| `public/forum.js` | optional: delete confirmation, Ctrl/Cmd+Enter to post |
+| `public/forum.js` | optional: delete confirmation, Ctrl/Cmd+Enter to post, caret after a quote |
 | `public/favicon.svg` | the Interstate-72 shield |
 | `ROUTES.md` | every route, origin label, query, template parameter, message and redirect |
 | `tests/run.sh` | curl end-to-end test (also run by `make check` via `tests/forum/run.sh`) |
 | `preview/*.html` | static pages rendered from the real templates and seed data |
 | `preview/shots/` | screenshots of the previews: desktop 1280 px and mobile 390 px, light and dark |
+| `preview/shots-live/` | screenshots of the running forum in Chromium (same naming), from the browser QA pass; `notice-*` show a PLEASE NOTE banner after sign-in |
 
 ## Running
 
@@ -49,6 +50,11 @@ temp dir and serves it twice on random ports:
    (locked topics refuse replies and quotes, even from moderators), promote/demote and its
    403/400/404s, bio settings, XSS payloads in title, body, bio and username rendered inert, and
    the topic page under 100 ms.
+   The seeded run also covers the **return path and notices**: Sign in / Register links carry `next` from every page; guards on
+   `/new`, reply, edit and settings bounce to `/login?next=…`; sign-in and registration go back
+   there; `//evil.example`, `https://evil.example`, `/\evil.example`, CR/LF, spaces, fragments and
+   relative paths fall back to `/`; every action's redirect shows its PLEASE NOTE banner, and
+   unknown or non-numeric `done` codes show nothing.
 
 It prints `forum: N passed, M failed` and exits non-zero on any failure.
 
@@ -62,8 +68,9 @@ COME FROM order) lives at labels `2000 + 100n`:
 | (100)–(190) | the one `READ OUT … WITH TEMPLATE` line of each page (ROUTES.md §1.1). Single-route pages render inline at the end of their handler; compose (140), login (150), register (160) and settings (180) sit in a shared block that their GET and POST handlers `NEXT` to |
 | (400) (403) (404) | `error.html` with status 400/403/404 |
 | (600)–(690) | form validators: category, title, body, bio, username, password, confirmation; (690) decides save-or-show from the validity flag `.40` and the Preview button |
+| (700)–(771) | string building: append bytes (700), a decimal number (710), `?done=N` / `&done=N` (720), validate `next` (730), `?page=N` (750), redirect to the return path (760) |
 | (800)–(894) | error raisers, one per ROUTES.md §1.8 message; they never return |
-| (900) | the session subroutine every handler calls first (`:100`, `,100`, `.101`–`.104`) |
+| (900) | the session subroutine every handler calls first (`:100`, `,100`, `.101`–`.104`, and the notice `.105`) |
 | (905) (907) (915) (917) | guards: POST needs an account (403), GET needs an account (→ `/login`), moderator only, topic must exist |
 | (910) | pagination: rows and requested page in, page/pages/prev/next/skip out, 404 past the end |
 | (920)–(928) | byte scanner over a 256-entry class table (blank bytes, username bytes) |
@@ -82,9 +89,26 @@ system library: (1020) for counters, (1500)/(1510)/(1540)/(1550) for pages and v
 (1030) for the topic page's row count. The register handler computes the new account's role
 as `z$#1` (mingle), which is 3 for the first account and 1 afterwards.
 
+### Return path and notices (ROUTES.md §1.10)
+
+INTERCAL has no string concatenation, so each page spells its own address into `,101` byte by
+byte: `"/t/"` is copied in with (700), the topic id is turned into decimal digits by dividing by
+ten with (1550) and stacking the remainders from the right (710), and `?page=N` is added when
+the reader is not on page 1. Every Sign in and Register link is `/login?next={{,101}}`. When the
+form comes back, (730) checks `next` with the byte scanner: it must start with `/`, its second
+byte must be neither `/` nor `\`, and every byte must be printable ASCII other than `#` (so no
+CR/LF). Otherwise the return path is `/`.
+
+Notices are a number, not text. Every action's redirect carries `done=N`. (900) keeps N only
+when its high half is empty and it is below 16, and `_notice.html` picks the sentence from a
+fixed table, so a request can never put its own words into the banner. Whether `?` or `&` comes
+before `done` is decided by scanning the path for `?` (720).
+
 ### Deviations from ROUTES.md
 
-None in routes, origins, queries, parameters, messages or redirects. Implementation notes:
+None in routes, origins, queries, parameters or messages. The return path and notices
+(ROUTES.md §1.10) extend the redirects, and `to_root.txt`/`to_category.txt` were removed
+(`to_next.txt` replaces the first; the second was never used). Implementation notes:
 
 - The quote check in `GET /t/:id/reply` is a single `HOW MANY` on posts with `HAVING #0 quote
   HAVING #1 topic HAVING #6 #0` instead of fetching the row and comparing three columns.
@@ -93,6 +117,8 @@ None in routes, origins, queries, parameters, messages or redirects. Implementat
   64 KiB is reported as empty rather than too long.
 - Page numbers are read into a 32-bit variable; non-numeric values, values above 4 294 967 295
   and 0 all mean page 1.
+- Search pages return to `/search` without the query: templates have no URL-encoding filter
+  and the return path is only built from bytes that need none.
 
 ## Seed accounts
 
@@ -146,7 +172,8 @@ author-deleted post; topic 13 has a moderator-deleted spam post; topic 8 is a re
 - **Numbers arrive as digits.** Template extraction turns numbers into decimal tail arrays, so
   flags are compared with `IS #0`/`IS #1` (the bytes `"0"` are truthy), counts print with
   `IN ROMAN` and carry the arabic value in a `title` tooltip. Zero, which has no Roman
-  numeral, renders as `_`, the way READ OUT spells it.
+  numeral, renders as `_`, the way READ OUT spells it. Count labels agree with the number
+  (`I post`, `II posts`) via `{{ABSTAIN FROM ,n IS #1}}s{{REINSTATE}}`.
 - **Case-insensitive names** come from `users.name ... COLLATE NOCASE`: equality, uniqueness
   and profile lookup all ignore case without INTERCAL lowercasing anything.
 - **Search** uses one `haystack` column (title + body for opening posts, body for replies)

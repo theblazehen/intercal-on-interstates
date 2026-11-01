@@ -254,8 +254,13 @@ int main(int argc, char **argv)
     if (!keepc)
         remove(cfile);
     if (rc != 0) {
-        fprintf(stderr, "ick: C compiler failed: %s\n", cmd);
-        cerr(778, p->iyylineno, NULL);
+        /* One message, naming the cause; there is no source line to blame. */
+        int status = WIFEXITED(rc) ? WEXITSTATUS(rc) : -1;
+        fflush(stdout);
+        fprintf(stderr, "ICL778I\tUNEXPLAINED COMPILER BUG: THE C COMPILER %s\n"
+                        "\tON THE WAY TO %s\n        CORRECT SOURCE AND RESUBNIT\n",
+                status == 127 ? "WAS NOT FOUND (SET $CC OR PATH)" : "FAILED", cmd);
+        exit(778);
     }
     return 0;
 }
