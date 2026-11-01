@@ -1,0 +1,24 @@
+#!/bin/sh
+# configure — INTERCAL on Interstates. All you need is a C compiler.
+prefix=/usr/local
+for arg in "$@"; do
+    case "$arg" in
+    --prefix=*) prefix=${arg#--prefix=} ;;
+    -h|--help)
+        echo "usage: ./configure [--prefix=DIR]   (CC and CFLAGS are read from the environment)"
+        exit 0 ;;
+    *) echo "configure: unknown option $arg" >&2; exit 1 ;;
+    esac
+done
+cc=${CC:-cc}
+if ! command -v "$cc" >/dev/null 2>&1; then
+    echo "configure: no C compiler found (tried '$cc'). All you need is a C compiler; you need one." >&2
+    exit 1
+fi
+cat > config.mk <<EOF
+PREFIX = $prefix
+CC = $cc
+CFLAGS = ${CFLAGS:--O2 -g}
+EOF
+echo "configure: PREFIX=$prefix CC=$cc"
+echo "configure: now run 'make' and 'make install'"

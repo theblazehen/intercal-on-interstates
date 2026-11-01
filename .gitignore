@@ -1,0 +1,5 @@
+build/
+config.mk
+*.db
+*.db-*
+.gross_secret

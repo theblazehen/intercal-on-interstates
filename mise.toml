@@ -1,0 +1,14 @@
+[tasks.build]
+description = "Build ick, gross and libioi"
+run = "nix develop -c sh -c 'test -f config.mk || ./configure; make -j6'"
+
+[tasks.check]
+description = "Run every test suite (tests/*/run.sh)"
+depends = ["build"]
+run = "nix develop -c make check"
+
+[tasks.forum]
+description = "Compile the PLEASE DISCUSS forum and serve it on :10585"
+depends = ["build"]
+dir = "forum"
+run = "nix develop -c sh -c '../build/ick -s -b forum.i && ../build/gross ./forum'"
