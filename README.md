@@ -13,7 +13,7 @@ This is version 1.1, and it works. Every example on that page compiles unchanged
 [PLEASE DISCUSS](apps/please-discuss/), a forum somewhere between phpBB and Discourse, is
 written in it.
 
-[![A request refused with ICL403I YOU CAN'T GET THERE FROM HERE, from the walkthrough video](docs/img/video-still.jpg)](https://x.com/theblazehen/status/2116927478086406581)
+[![The PLEASE DISCUSS forum's board index, latest topics and a topic page, from the walkthrough video](docs/img/video-still.jpg)](https://x.com/theblazehen/status/2116927478086406581)
 
 *[Watch the seven-minute walkthrough](https://x.com/theblazehen/status/2116927478086406581): one
 click on the forum, followed through an INTERCAL program.*
