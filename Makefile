@@ -16,7 +16,7 @@ SQLITE_FLAGS = -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION -DSQLITE_DEFAU
 
 RT_OBJ = $(patsubst %.c,$(B)/obj/%.o,$(CORE_SRC) $(WEB_SRC)) $(B)/obj/vendor/sqlite/sqlite3.o
 
-.PHONY: all clean install check
+.PHONY: all clean install check dist
 all: $(B)/ick $(B)/gross $(B)/lib/libioi.a $(B)/share/syslib.i $(B)/share/floatlib.i
 
 $(B)/obj/vendor/sqlite/sqlite3.o: vendor/sqlite/sqlite3.c
@@ -57,6 +57,10 @@ install: all
 
 check: all
 	@for t in tests/*/run.sh; do echo "== $$t"; sh $$t || exit 1; done
+
+VERSION = 1.1
+dist:
+	git archive --prefix=ioi-$(VERSION)/ -o ioi-$(VERSION).tar.gz HEAD
 
 clean:
 	rm -rf $(B)
