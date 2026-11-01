@@ -1,0 +1,2 @@
+tests/conformance/progs/** -text
+vendor/** -text
