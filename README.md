@@ -4,10 +4,10 @@ A web framework for INTERCAL, the language designed in 1972 to resemble no other
 your program to native code, routes requests with `COME FROM`, and talks to SQLite. The forum
 below is written in it.
 
-[![The PLEASE DISCUSS forum: board index, latest topics and a topic page](docs/img/video-still.jpg)](https://x.com/theblazehen/status/2116927478086406581)
+[![PLEASE DISCUSS: the board index on a desktop, and a topic on a phone in dark mode](docs/img/forum.webp)](apps/please-discuss/)
 
-*[Watch the seven-minute walkthrough](https://x.com/theblazehen/status/2116927478086406581): one
-click on the forum, followed through an INTERCAL program.*
+[Watch the seven-minute walkthrough on Twitter](https://twitter.com/theblazehen/status/2116927478086406581):
+one click on that forum, followed through an INTERCAL program.
 
 ## It was a joke
 
@@ -83,10 +83,7 @@ The language and framework are specified in [SPEC.md](SPEC.md).
 
 ## PLEASE DISCUSS
 
-<p>
-  <a href="apps/please-discuss/"><img src="docs/img/topic-desktop-light.webp" width="72%" alt="A topic page in PLEASE DISCUSS"></a>
-  <a href="apps/please-discuss/"><img src="docs/img/topic-mobile-dark.webp" width="25%" alt="The same topic on a phone, dark mode"></a>
-</p>
+[![A topic page in PLEASE DISCUSS, with PLEASE counts in Roman numerals](docs/img/topic.webp)](apps/please-discuss/)
 
 [The forum](apps/please-discuss/) is about 1,400 lines of INTERCAL, 22% of them `PLEASE`. It has
 categories, topics, quoting, likes, editing, moderation, search and accounts. Every page works
@@ -118,7 +115,7 @@ nothing but a C compiler.
 
 ## How it was made
 
-Built by [@theblazehen](https://x.com/theblazehen) with coding agents, from the 2013 site's
+Built by [@theblazehen](https://twitter.com/theblazehen) with coding agents, from the 2013 site's
 promises: a spec first, then the compiler, runtime and server in parallel, then the forum, a
 security review and a browser pass.
 
