@@ -1,0 +1,4 @@
+	DO .1 <- #1
+	PLEASE NOTE .1/.2 IS SLAT
+	DO READ OUT .1
+	DO GIVE UP

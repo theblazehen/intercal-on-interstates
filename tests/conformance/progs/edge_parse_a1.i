@@ -1,0 +1,15 @@
+	DO .1 <- #5
+	PLEASE NOTE THIS IS A COMMENT, MAYBE NOT
+	DO .2 <- '.1$#3'~"#0$#65535"
+	PLEASE
+	DO READ OUT .2
+	DO NOTE THAT .1 IS GREAT
+	DO .3 <- #V5
+	DO .4 <- &.1
+	PLEASE DO .5 <- "V'.1~#7'"
+	DO READ OUT .3 + .4 + .5
+	DO ,1 <- #3 BY #2
+	DO ,1 SUB #2 #1 <- ',1 SUB #1 #1'$#1
+	DO READ OUT ,1 SUB #2 #1
+	PLEASE GIVE UP ONCE MORE
+	DO GIVE UP

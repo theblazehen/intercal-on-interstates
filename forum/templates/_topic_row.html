@@ -1,0 +1,26 @@
+{{NOTE One topic in a topic list. Included inside the loop of latest.html and category.html.
+  Row: ,144 id ,143 title ,142 category id ,141 category name ,140 category color ,139 author
+       ,138 ,137 ,136 ,135 recent posters ('' when absent) ,134 replies ,133 views ,132 last activity
+       ,131 pinned ,130 locked ,129 last post id.
+  The category badge shows only when .104 IS #2 (the Latest page).}}
+      <li class="trow{{ABSTAIN WITHOUT ,131 IS #1}} is-pinned{{REINSTATE}}">
+        <div class="trow-main">
+          <a class="trow-title" href="/t/{{,144}}">{{ABSTAIN WITHOUT ,131 IS #1}}<svg class="ico ico-pin" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M9.8 1.5l4.7 4.7-1.4.6-2.6 2.6.3 3.1-1.3 1.3-2.9-2.9-3.6 3.6-.9-.9 3.6-3.6-2.9-2.9 1.3-1.3 3.1.3 2.6-2.6z" fill="currentColor"/></svg><span class="vh">Pinned: </span>{{REINSTATE}}{{ABSTAIN WITHOUT ,130 IS #1}}<svg class="ico ico-lock" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 7V5a4 4 0 018 0v2h1v8H3V7zm2 0h4V5a2 2 0 00-4 0z" fill="currentColor"/></svg><span class="vh">Locked: </span>{{REINSTATE}}{{,143}}</a>
+          <div class="trow-sub">
+{{ABSTAIN WITHOUT .104 IS #2}}
+            <a class="badge-cat" style="--cat: {{,140}}" href="/c/{{,142}}">{{,141}}</a>
+{{REINSTATE}}
+            <span class="meta">started by <a href="/u/{{,139}}">{{,139}}</a></span>
+          </div>
+        </div>
+        <div class="trow-posters" aria-label="Posters">
+          <a class="face face-xs" href="/u/{{,139}}" title="{{,139}} (started the topic)">{{,139 AS FACE}}</a>
+{{ABSTAIN WITHOUT ,138}}<a class="face face-xs" href="/u/{{,138}}" title="{{,138}}">{{,138 AS FACE}}</a>{{REINSTATE}}
+{{ABSTAIN WITHOUT ,137}}<a class="face face-xs" href="/u/{{,137}}" title="{{,137}}">{{,137 AS FACE}}</a>{{REINSTATE}}
+{{ABSTAIN WITHOUT ,136}}<a class="face face-xs" href="/u/{{,136}}" title="{{,136}}">{{,136 AS FACE}}</a>{{REINSTATE}}
+{{ABSTAIN WITHOUT ,135}}<a class="face face-xs" href="/u/{{,135}}" title="{{,135}}">{{,135 AS FACE}}</a>{{REINSTATE}}
+        </div>
+        <div class="stat stat-replies"><span class="num" title="{{,134}} replies">{{,134 IN ROMAN}}</span> <span class="stat-lbl">replies</span></div>
+        <div class="stat stat-views"><span class="num" title="{{,133}} views">{{,133 IN ROMAN}}</span> <span class="stat-lbl">views</span></div>
+        <div class="trow-act"><a href="/p/{{,129}}" title="Jump to the last post"><time>{{,132 AGO}}</time></a></div>
+      </li>

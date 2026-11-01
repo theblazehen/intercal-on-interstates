@@ -1,0 +1,104 @@
+{{NOTE The editor: new topic, reply, edit. Rendered at (140) only.
+  ,144 mode: 1 new topic, 2 reply, 3 edit
+  ,143 target: mode 2 topic id, mode 3 post id, mode 1 #0
+  ,142 category id (mode 1: selected, #0 for none; modes 2 and 3: the topic's category)
+  ,141 title (mode 1: what the user typed; modes 2 and 3: the topic's title)
+  ,140 body (what the user typed, or the post being edited)
+  ,139 error message, '' for none
+  ,138 preview: #1 renders ,140 AS PROSE above the form
+  ,137 quoted author and ,136 quoted body: when ,137 is non-empty the textarea starts with a
+       [quote="author"] block (used by GET /t/:id/reply?quote=); pass '' otherwise
+  ,135 title editable: #1 shows a title field (mode 1, and mode 3 when editing the opening post)
+  ;134 categories, each ,144 id ,143 name (only read in mode 1, always pass it)
+  ,133 topic id for the Cancel link in modes 2 and 3 (#0 in mode 1)}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>{{ABSTAIN WITHOUT ,144 IS #1}}New topic{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #2}}Reply: {{,141}}{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #3}}Edit post{{REINSTATE}} · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap wrap-narrow">
+  <div class="pagehead">
+{{ABSTAIN WITHOUT ,144 IS #1}}
+    <h1>New topic</h1>
+    <p class="lede">Start a conversation. PLEASE pick the right category.</p>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,144 IS #2}}
+    <p class="kicker">COME FROM here</p>
+    <h1>Reply to <a href="/t/{{,133}}">{{,141}}</a></h1>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,144 IS #3}}
+    <h1>Edit post</h1>
+    <p class="lede">in <a href="/t/{{,133}}">{{,141}}</a></p>
+{{REINSTATE}}
+  </div>
+{{ABSTAIN WITHOUT ,139}}
+  <div class="alert" role="alert">
+    <p class="alert-code">{{,139}}</p>
+    <p>PLEASE CORRECT SOURCE AND RESUBNIT. Your text is still below.</p>
+  </div>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,138 IS #1}}
+  <section class="preview" aria-label="Preview">
+    <p class="preview-label">Preview <span>· this is how your post will look</span></p>
+    <div class="prose">{{,140 AS PROSE}}</div>
+  </section>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,144 IS #1}}
+  <form class="composer composer-full" action="/new" method="post">
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,144 IS #2}}
+  <form class="composer composer-full" action="/t/{{,143}}/reply" method="post">
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,144 IS #3}}
+  <form class="composer composer-full" action="/p/{{,143}}/edit" method="post">
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,144 IS #1}}
+    <div class="field">
+      <label for="c-category">Category</label>
+      <select id="c-category" name="category">
+        <option value="0">PLEASE choose a category</option>
+{{DO ;134 NEXT}}
+        {{ABSTAIN WITHOUT ,144 IS ,142}}<option value="{{,144}}" selected>{{,143}}</option>{{REINSTATE}}{{ABSTAIN FROM ,144 IS ,142}}<option value="{{,144}}">{{,143}}</option>{{REINSTATE}}
+{{RESUME}}
+      </select>
+    </div>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,135 IS #1}}
+    <div class="field">
+      <label for="c-title">Title</label>
+      <input id="c-title" name="title" type="text" value="{{,141}}" autocomplete="off" placeholder="What is this topic about?">
+      <p class="field-hint">Up to 120 bytes.</p>
+    </div>
+{{REINSTATE}}
+    <div class="field">
+      <label for="c-body">{{ABSTAIN WITHOUT ,144 IS #1}}First post{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #2}}Your reply{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #3}}Post{{REINSTATE}}</label>
+      <textarea id="c-body" name="body" rows="14">{{ABSTAIN WITHOUT ,137}}[quote="{{,137}}"]
+{{,136}}
+[/quote]
+
+{{REINSTATE}}{{,140}}</textarea>
+      <p class="field-hint">Markdown: **bold**, *italic*, `code`, ``` fenced blocks, &gt; quotes, lists, links. phpBB-style [quote="name"]…[/quote] and @name mentions work too. Up to 20 000 bytes.</p>
+    </div>
+    <div class="composer-bar">
+      <button class="btn btn-go" type="submit">{{ABSTAIN WITHOUT ,144 IS #1}}Create topic{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #2}}Post reply{{REINSTATE}}{{ABSTAIN WITHOUT ,144 IS #3}}Save changes{{REINSTATE}}</button>
+      <button class="btn" type="submit" name="preview" value="1">Preview</button>
+{{ABSTAIN WITHOUT ,144 IS #1}}
+{{ABSTAIN FROM ,142 IS #0}}
+      <a class="btn btn-quiet" href="/c/{{,142}}">Cancel</a>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,142 IS #0}}
+      <a class="btn btn-quiet" href="/">Cancel</a>
+{{REINSTATE}}
+{{REINSTATE}}
+{{ABSTAIN FROM ,144 IS #1}}
+      <a class="btn btn-quiet" href="/t/{{,133}}">Cancel</a>
+{{REINSTATE}}
+    </div>
+  </form>
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

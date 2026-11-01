@@ -1,0 +1,40 @@
+{{NOTE Registration form. Rendered at (160) only; POST /register COMEs FROM (160).
+  ,144 error message ('' for none) ,143 name the user typed ('' on first view)}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Register · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap wrap-form">
+  <div class="card card-form">
+    <h1>Register</h1>
+    <p class="lede">One account, and you can post, reply and PLEASE.</p>
+{{ABSTAIN WITHOUT ,144}}
+    <div class="alert" role="alert"><p class="alert-code">{{,144}}</p><p>PLEASE CORRECT SOURCE AND RESUBNIT.</p></div>
+{{REINSTATE}}
+    <form action="/register" method="post">
+      <div class="field">
+        <label for="r-name">Username</label>
+        <input id="r-name" name="name" type="text" value="{{,143}}" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="r-name-hint">
+        <p class="field-hint" id="r-name-hint">3 to 20 characters: letters, digits, _ and -.</p>
+      </div>
+      <div class="field">
+        <label for="r-pass">Password</label>
+        <input id="r-pass" name="password" type="password" autocomplete="new-password" aria-describedby="r-pass-hint">
+        <p class="field-hint" id="r-pass-hint">At least 8 bytes.</p>
+      </div>
+      <div class="field">
+        <label for="r-confirm">Password again</label>
+        <input id="r-confirm" name="confirm" type="password" autocomplete="new-password">
+      </div>
+      <button class="btn btn-go btn-wide" type="submit">Create account</button>
+    </form>
+    <p class="card-foot">Already registered? <a href="/login">Sign in</a>.</p>
+  </div>
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

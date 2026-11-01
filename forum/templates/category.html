@@ -1,0 +1,52 @@
+{{NOTE One category's topics. Rendered at (120) by GET /c/:id.
+  ,144 category id ,143 name ,142 description ,141 color ,140 section name ,139 topic count
+  ;138 topic rows (see _topic_row.html) ,137 page ,136 pages ,135 previous page (0 = none) ,134 next page (0 = none)}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>{{,143}} · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Board index</a> <span aria-hidden="true">›</span> <span>{{,140}}</span></nav>
+  <div class="pagehead pagehead-row cat-head" style="--cat: {{,141}}">
+    <div>
+      <h1>{{,143}}</h1>
+      <p class="lede">{{,142}}</p>
+      <p class="meta"><span title="{{,139}}">{{,139 IN ROMAN}}</span> topics</p>
+    </div>
+{{ABSTAIN WITHOUT :100}}
+    <a class="btn btn-go" href="/new?c={{,144}}">New topic</a>
+{{REINSTATE}}
+{{ABSTAIN FROM :100}}
+    <a class="btn" href="/login">Sign in to post</a>
+{{REINSTATE}}
+  </div>
+{{ABSTAIN WITHOUT ;138}}
+  <div class="tlist-head" aria-hidden="true"><span>Topic</span><span></span><span>Replies</span><span>Views</span><span>Activity</span></div>
+  <ol class="tlist">
+{{DO ;138 NEXT}}
+{{DO "_topic_row.html" NEXT}}
+{{RESUME}}
+  </ol>
+{{REINSTATE}}
+{{ABSTAIN FROM ;138}}
+  <p class="empty">No topics yet. This category has been ABSTAINED FROM so far; PLEASE start something.</p>
+{{REINSTATE}}
+{{ABSTAIN FROM ,136 IS #1}}
+  <nav class="pager" aria-label="Pages">
+{{ABSTAIN FROM ,135 IS #0}}
+    <a class="btn" rel="prev" href="/c/{{,144}}?page={{,135}}">← Previous</a>
+{{REINSTATE}}
+    <span class="pager-pos">Page <b title="{{,137}}">{{,137 IN ROMAN}}</b> of <span title="{{,136}}">{{,136 IN ROMAN}}</span></span>
+{{ABSTAIN FROM ,134 IS #0}}
+    <a class="btn" rel="next" href="/c/{{,144}}?page={{,134}}">Next →</a>
+{{REINSTATE}}
+  </nav>
+{{REINSTATE}}
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

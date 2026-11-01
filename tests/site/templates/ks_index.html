@@ -1,0 +1,21 @@
+{{DO "ks_head.html" NEXT}}
+<p class="count">{{,143 IN ARABIC}} entries ({{,143 IN ROMAN}}), {{;141 SUB #2 IN ARABIC}} likes</p>
+{{ABSTAIN FROM ,142}}<p class="anon"><a href="/login">Sign in</a></p>{{REINSTATE}}
+{{ABSTAIN WITHOUT ,142}}<p class="user">Signed in as {{,142}}</p>
+<form method="post" action="/logout"><button>GIVE UP</button></form>{{REINSTATE}}
+<form method="post" action="/sign">
+<textarea name="message"></textarea>
+<button>SIGN</button>
+</form>
+<ol>
+{{DO ;144 NEXT}}<li id="e{{,144}}" data-index="{{.144 IN ARABIC}}">{{,140 AS FACE}}
+<a href="/entry/{{,144}}">#{{.144}}</a> <b>{{,140}}</b> {{,142 AGO}}
+<div class="msg">{{,143 AS PROSE}}</div>
+{{ABSTAIN FROM ,141 IS #0}}<span class="likes">{{,141 IN ARABIC}} PLEASEs</span>{{REINSTATE}}
+<form method="post" action="/like/{{,144}}"><button>PLEASE</button></form>
+</li>
+{{RESUME}}</ol>
+<p>after the loop .144 is back to {{.144 IN ARABIC}}</p>
+<nav><a href="/search?q=hello">search</a> <a href="/files/a/b/c.txt">files</a>
+<a href="/time">time</a> <a href="/api/stats">stats</a></nav>
+{{DO "ks_foot.html" NEXT}}

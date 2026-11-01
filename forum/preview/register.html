@@ -1,0 +1,89 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Register · PLEASE DISCUSS</title>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#14254a">
+<link rel="stylesheet" href="../public/forum.css">
+<link rel="icon" href="../public/favicon.svg" type="image/svg+xml">
+<script src="../public/forum.js" defer></script>
+
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="/">
+      <svg class="shield" viewBox="0 0 40 42" aria-hidden="true" focusable="false">
+        <path d="M3 5c6-3 11-4 17-1 6-3 11-2 17 1v13c0 12-7 19-17 23C10 37 3 30 3 18z" fill="#fff"/>
+        <path d="M6 7.5c5-2 9-2.7 14 0 5-2.7 9-2 14 0V14H6z" fill="#c8102e"/>
+        <path d="M6 15.5h28v2.5c0 10.5-6 16.6-14 20-8-3.4-14-9.5-14-20z" fill="#003f87"/>
+        <text x="20" y="12.6" text-anchor="middle" font-size="4.6" font-weight="700" fill="#fff" font-family="Arial, Helvetica, sans-serif" letter-spacing=".2">INTERCAL</text>
+        <text x="20" y="31" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="Arial, Helvetica, sans-serif">72</text>
+      </svg>
+      <span class="brand-text">
+        <span class="brand-name">PLEASE DISCUSS</span>
+        <span class="brand-sub">INTERCAL on Interstates</span>
+      </span>
+    </a>
+    <nav class="mainnav" aria-label="Main">
+      <a href="/" aria-current="false">Board index</a>
+      <a href="/latest" aria-current="false">Latest</a>
+    </nav>
+    <form class="searchbox" action="/search" method="get" role="search">
+      <label class="vh" for="q-top">Search the forum</label>
+      <input id="q-top" name="q" type="search" placeholder="Search" autocomplete="off">
+      <button class="searchbox-go" type="submit" aria-label="Search">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </form>
+    <div class="userbox">
+      
+      
+      <a class="btn btn-quiet" href="/login">Sign in</a>
+      <a class="btn btn-go" href="/register">Register</a>
+      
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap wrap-form">
+  <div class="card card-form">
+    <h1>Register</h1>
+    <p class="lede">One account, and you can post, reply and PLEASE.</p>
+
+    <form action="/register" method="post">
+      <div class="field">
+        <label for="r-name">Username</label>
+        <input id="r-name" name="name" type="text" value="" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="r-name-hint">
+        <p class="field-hint" id="r-name-hint">3 to 20 characters: letters, digits, _ and -.</p>
+      </div>
+      <div class="field">
+        <label for="r-pass">Password</label>
+        <input id="r-pass" name="password" type="password" autocomplete="new-password" aria-describedby="r-pass-hint">
+        <p class="field-hint" id="r-pass-hint">At least 8 bytes.</p>
+      </div>
+      <div class="field">
+        <label for="r-confirm">Password again</label>
+        <input id="r-confirm" name="confirm" type="password" autocomplete="new-password">
+      </div>
+      <button class="btn btn-go btn-wide" type="submit">Create account</button>
+    </form>
+    <p class="card-foot">Already registered? <a href="/login">Sign in</a>.</p>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <p>PLEASE DISCUSS is written in <strong>INTERCAL on Interstates</strong>. Every page you see was reached by <code>COME FROM (16000)</code>.</p>
+    <p class="foot-links"><a href="/">Board index</a> <a href="/latest">Latest</a> <a href="/search">Search</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+	DO .5 <- #0
+(10)	DO NOT NOTE THIS ONCE
+	DO .5 <- .5$#1
+	PLEASE READ OUT .5
+	DO (10) NEXT
+	DO GIVE UP

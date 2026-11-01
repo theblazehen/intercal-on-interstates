@@ -1,0 +1,183 @@
+{{NOTE A topic and one page of its posts. Rendered at (130) by GET /t/:id.
+  ,144 topic id ,143 title ,142 category id ,141 category name ,140 category color ,139 pinned ,138 locked
+  ,137 views ,136 live post count ,135 first post id
+  ;134 post rows, each: ,144 post id ,143 author id ,142 author ,141 author role ,140 role label
+       ,139 author joined ,138 author post count ,137 body ,136 created ,135 edited ,134 deleted
+       ,133 PLEASE count ,132 number in topic ,131 topic id ,130 topic locked
+  ,133 page ,132 pages ,131 previous page (0 = none) ,130 next page (0 = none)
+  ;129 categories for the move form, each: ,144 id ,143 name
+  Program variables: :100 .102 as everywhere; ;100 SUB k = 1 when the signed-in user PLEASEd post row k.}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>{{,143}} · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap wrap-narrow">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Board index</a> <span aria-hidden="true">›</span> <a href="/c/{{,142}}">{{,141}}</a></nav>
+  <div class="topic-head">
+    <h1 class="topic-title">{{ABSTAIN WITHOUT ,139 IS #1}}<svg class="ico ico-pin" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M9.8 1.5l4.7 4.7-1.4.6-2.6 2.6.3 3.1-1.3 1.3-2.9-2.9-3.6 3.6-.9-.9 3.6-3.6-2.9-2.9 1.3-1.3 3.1.3 2.6-2.6z" fill="currentColor"/></svg><span class="vh">Pinned: </span>{{REINSTATE}}{{ABSTAIN WITHOUT ,138 IS #1}}<svg class="ico ico-lock" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 7V5a4 4 0 018 0v2h1v8H3V7zm2 0h4V5a2 2 0 00-4 0z" fill="currentColor"/></svg><span class="vh">Locked: </span>{{REINSTATE}}{{,143}}</h1>
+    <div class="topic-meta">
+      <a class="badge-cat" style="--cat: {{,140}}" href="/c/{{,142}}">{{,141}}</a>
+      <span><span title="{{,136}}">{{,136 IN ROMAN}}</span> posts</span>
+      <span><span title="{{,137}}">{{,137 IN ROMAN}}</span> views</span>
+{{ABSTAIN WITHOUT ,139 IS #1}}
+      <span class="flag flag-pin">Pinned</span>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,138 IS #1}}
+      <span class="flag flag-lock">Locked</span>
+{{REINSTATE}}
+    </div>
+  </div>
+{{ABSTAIN FROM ,132 IS #1}}
+  <nav class="pager pager-top" aria-label="Pages">
+{{ABSTAIN FROM ,131 IS #0}}
+    <a class="btn" rel="prev" href="/t/{{,144}}?page={{,131}}">← Previous</a>
+{{REINSTATE}}
+    <span class="pager-pos">Page <b title="{{,133}}">{{,133 IN ROMAN}}</b> of <span title="{{,132}}">{{,132 IN ROMAN}}</span></span>
+{{ABSTAIN FROM ,130 IS #0}}
+    <a class="btn" rel="next" href="/t/{{,144}}?page={{,130}}">Next →</a>
+{{REINSTATE}}
+  </nav>
+{{REINSTATE}}
+  <div class="posts">
+{{DO ;134 NEXT}}
+    <article class="post{{ABSTAIN FROM ,134 IS #0}} is-deleted{{REINSTATE}}" id="p{{,144}}">
+      <a class="face face-l post-face" href="/u/{{,142}}" tabindex="-1" aria-hidden="true">{{,142 AS FACE}}</a>
+      <div class="post-main">
+        <header class="post-head">
+          <div class="post-who">
+            <a class="post-name" href="/u/{{,142}}">{{,142}}</a>
+{{ABSTAIN FROM ,141 IS #1}}
+            <span class="role role-{{,141}}">{{,140}}</span>
+{{REINSTATE}}
+            <span class="post-card">joined <time>{{,139 AGO}}</time> · <span title="{{,138}}">{{,138 IN ROMAN}}</span> posts</span>
+          </div>
+          <div class="post-when">
+{{ABSTAIN FROM ,135 IS #0}}
+            <span class="edited" title="Edited {{,135 AGO}}">edited</span>
+{{REINSTATE}}
+            <a class="post-link" href="/p/{{,144}}" title="Permalink to post {{,132}}"><time>{{,136 AGO}}</time></a>
+          </div>
+        </header>
+{{ABSTAIN FROM ,134 IS #0}}
+        <p class="tombstone">
+{{ABSTAIN WITHOUT ,134 IS #1}}
+          This post was ABSTAINED FROM by its author.
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,134 IS #2}}
+          This post was ABSTAINED FROM by a moderator.
+{{REINSTATE}}
+        </p>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,134 IS #0}}
+        <div class="prose">{{,137 AS PROSE}}</div>
+        <footer class="post-actions">
+{{ABSTAIN WITHOUT :100}}
+{{ABSTAIN FROM ,143 IS :100}}
+          <form class="act-form" action="/p/{{,144}}/please" method="post">
+            <button class="please{{ABSTAIN WITHOUT ;100 SUB .144}} is-on{{REINSTATE}}" type="submit" aria-pressed="{{ABSTAIN WITHOUT ;100 SUB .144}}true{{REINSTATE}}{{ABSTAIN FROM ;100 SUB .144}}false{{REINSTATE}}" title="{{ABSTAIN WITHOUT ;100 SUB .144}}You PLEASEd this post. Press again to take it back.{{REINSTATE}}{{ABSTAIN FROM ;100 SUB .144}}PLEASE: tell the author you liked this post{{REINSTATE}}">
+              <span class="please-word">PLEASE</span>{{ABSTAIN FROM ,133 IS #0}}<span class="please-n" title="{{,133}}">{{,133 IN ROMAN}}</span>{{REINSTATE}}
+            </button>
+          </form>
+{{REINSTATE}}
+{{REINSTATE}}
+{{ABSTAIN FROM :100}}
+{{ABSTAIN FROM ,133 IS #0}}
+          <span class="please is-static" title="{{,133}} PLEASEs"><span class="please-word">PLEASE</span><span class="please-n">{{,133 IN ROMAN}}</span></span>
+{{REINSTATE}}
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,143 IS :100}}
+{{ABSTAIN FROM ,133 IS #0}}
+          <span class="please is-static" title="{{,133}} PLEASEs on your post"><span class="please-word">PLEASE</span><span class="please-n">{{,133 IN ROMAN}}</span></span>
+{{REINSTATE}}
+{{REINSTATE}}
+          <span class="post-actions-rest">
+{{ABSTAIN WITHOUT :100}}
+{{ABSTAIN FROM ,130 IS #1}}
+          <a class="act" href="/t/{{,131}}/reply?quote={{,144}}">Quote</a>
+{{REINSTATE}}
+{{REINSTATE}}
+{{ABSTAIN WITHOUT .102}}
+{{DO "_post_owner.html" NEXT}}
+{{REINSTATE}}
+{{ABSTAIN FROM .102}}
+{{ABSTAIN WITHOUT ,143 IS :100}}
+{{DO "_post_owner.html" NEXT}}
+{{REINSTATE}}
+{{REINSTATE}}
+          </span>
+        </footer>
+{{REINSTATE}}
+      </div>
+    </article>
+{{RESUME}}
+  </div>
+{{ABSTAIN FROM ,132 IS #1}}
+  <nav class="pager" aria-label="Pages">
+{{ABSTAIN FROM ,131 IS #0}}
+    <a class="btn" rel="prev" href="/t/{{,144}}?page={{,131}}">← Previous</a>
+{{REINSTATE}}
+    <span class="pager-pos">Page <b title="{{,133}}">{{,133 IN ROMAN}}</b> of <span title="{{,132}}">{{,132 IN ROMAN}}</span></span>
+{{ABSTAIN FROM ,130 IS #0}}
+    <a class="btn" rel="next" href="/t/{{,144}}?page={{,130}}">Next →</a>
+{{REINSTATE}}
+  </nav>
+{{REINSTATE}}
+  <section class="reply" id="reply" aria-labelledby="reply-title">
+{{ABSTAIN WITHOUT ,138 IS #1}}
+    <p class="notice notice-lock"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 7V5a4 4 0 018 0v2h1v8H3V7zm2 0h4V5a2 2 0 00-4 0z" fill="currentColor"/></svg> <span id="reply-title">This topic is locked: ABSTAINED FROM further replies.</span></p>
+{{REINSTATE}}
+{{ABSTAIN FROM ,138 IS #1}}
+{{ABSTAIN FROM :100}}
+    <p class="notice"><span id="reply-title">Want to join in?</span> <a href="/login">Sign in</a> or <a href="/register">register</a> to reply.</p>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT :100}}
+    <h2 class="reply-title" id="reply-title"><span class="kicker">COME FROM here</span> Reply to this topic</h2>
+    <form class="composer" action="/t/{{,144}}/reply" method="post">
+      <div class="composer-who"><span class="face face-s">{{,100 AS FACE}}</span> <span>Replying as <strong>{{,100}}</strong></span></div>
+      <label class="vh" for="reply-body">Your reply</label>
+      <textarea id="reply-body" name="body" rows="7" placeholder="PLEASE write something. Markdown, [quote] and @mentions work."></textarea>
+      <div class="composer-bar">
+        <button class="btn btn-go" type="submit">Post reply</button>
+        <button class="btn" type="submit" name="preview" value="1">Preview</button>
+        <span class="hint">**bold**, *italic*, `code`, ``` fences, &gt; quotes, [quote="name"]…[/quote], @name</span>
+      </div>
+    </form>
+{{REINSTATE}}
+{{REINSTATE}}
+  </section>
+{{ABSTAIN WITHOUT .102}}
+  <details class="modtools">
+    <summary>Moderator tools</summary>
+    <div class="modtools-body">
+{{ABSTAIN WITHOUT ,139 IS #1}}
+      <form action="/t/{{,144}}/pin" method="post"><input type="hidden" name="pinned" value="0"><button class="btn" type="submit">Unpin</button></form>
+{{REINSTATE}}
+{{ABSTAIN FROM ,139 IS #1}}
+      <form action="/t/{{,144}}/pin" method="post"><input type="hidden" name="pinned" value="1"><button class="btn" type="submit">Pin to top of category</button></form>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,138 IS #1}}
+      <form action="/t/{{,144}}/lock" method="post"><input type="hidden" name="locked" value="0"><button class="btn" type="submit">Unlock</button></form>
+{{REINSTATE}}
+{{ABSTAIN FROM ,138 IS #1}}
+      <form action="/t/{{,144}}/lock" method="post"><input type="hidden" name="locked" value="1"><button class="btn" type="submit">Lock (no more replies)</button></form>
+{{REINSTATE}}
+      <form class="move-form" action="/t/{{,144}}/move" method="post">
+        <label for="move-cat">Move to</label>
+        <select id="move-cat" name="category">
+{{DO ;129 NEXT}}
+          {{ABSTAIN WITHOUT ,144 IS ,142}}<option value="{{,144}}" selected>{{,143}}</option>{{REINSTATE}}{{ABSTAIN FROM ,144 IS ,142}}<option value="{{,144}}">{{,143}}</option>{{REINSTATE}}
+{{RESUME}}
+        </select>
+        <button class="btn" type="submit">Move</button>
+      </form>
+    </div>
+  </details>
+{{REINSTATE}}
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

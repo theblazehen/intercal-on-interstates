@@ -1,0 +1,67 @@
+{{NOTE Board index. Rendered at (100) by GET /.
+  ;144 board rows, each: ,144 id ,143 section name ,142 first_in_section ,141 name ,140 description
+       ,139 color ,138 topic count ,137 post count ,136 last post id ,135 last topic title
+       ,134 last poster ,133 last post time
+  ;143 forum stats: SUB #1 members, #2 topics, #3 posts, #4 pleases, #5 newest member name}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Board index · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap">
+  <div class="pagehead">
+    <h1>Board index</h1>
+    <p class="lede">The community forum for INTERCAL on Interstates. PLEASE be polite, but not too polite.</p>
+  </div>
+{{DO ;144 NEXT}}
+{{ABSTAIN WITHOUT ,142 IS #1}}
+{{ABSTAIN FROM .144 IS #1}}
+    </ol>
+  </section>
+{{REINSTATE}}
+  <section class="board">
+    <h2 class="sign"><span class="sign-name">{{,143}}</span><span class="sign-cols" aria-hidden="true"><span>Topics</span><span>Posts</span><span>Last post</span></span></h2>
+    <ol class="cats">
+{{REINSTATE}}
+      <li class="cat" style="--cat: {{,139}}">
+        <div class="cat-main">
+          <h3 class="cat-name"><a href="/c/{{,144}}">{{,141}}</a></h3>
+          <p class="cat-desc">{{,140}}</p>
+        </div>
+        <div class="stat stat-topics"><span class="num" title="{{,138}} topics">{{,138 IN ROMAN}}</span> <span class="stat-lbl">topics</span></div>
+        <div class="stat stat-posts"><span class="num" title="{{,137}} posts">{{,137 IN ROMAN}}</span> <span class="stat-lbl">posts</span></div>
+        <div class="cat-last">
+{{ABSTAIN FROM ,136 IS #0}}
+          <a class="face face-s" href="/u/{{,134}}" tabindex="-1" aria-hidden="true">{{,134 AS FACE}}</a>
+          <div class="cat-last-text">
+            <a class="cat-last-topic" href="/p/{{,136}}">{{,135}}</a>
+            <span class="meta">by <a href="/u/{{,134}}">{{,134}}</a> · <time>{{,133 AGO}}</time></span>
+          </div>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,136 IS #0}}
+          <span class="meta">No posts yet. ABSTAINED FROM so far.</span>
+{{REINSTATE}}
+        </div>
+      </li>
+{{RESUME}}
+{{ABSTAIN WITHOUT ;144}}
+    </ol>
+  </section>
+{{REINSTATE}}
+  <section class="stats" aria-label="Forum statistics">
+    <h2 class="stats-title">Who is here</h2>
+    <p>
+      <span title="{{;143 SUB #1 IN ARABIC}}"><b>{{;143 SUB #1}}</b> members</span>
+      <span title="{{;143 SUB #2 IN ARABIC}}"><b>{{;143 SUB #2}}</b> topics</span>
+      <span title="{{;143 SUB #3 IN ARABIC}}"><b>{{;143 SUB #3}}</b> posts</span>
+      <span title="{{;143 SUB #4 IN ARABIC}}"><b>{{;143 SUB #4}}</b> PLEASEs</span>
+    </p>
+    <p>PLEASE welcome our newest member, <a href="/u/{{;143 SUB #5}}">{{;143 SUB #5}}</a>.</p>
+  </section>
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

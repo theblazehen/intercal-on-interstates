@@ -1,0 +1,11 @@
+	DO .1 <- #1 DO .2 <- #2
+	PLEASE READ OUT .1 + .2
+	DO :1 <- '#65535$#65535'~'#65535$#0'
+	DO READ OUT :1
+	DO .3 <- ?:1~#255
+	PLEASE READ OUT .3
+	DO ,2 <- #1
+	DO ,2 SUB #1 <- #77
+	DO READ OUT ',2 SUB #1'
+	DO READ OUT ,2 SUB #1
+	DO GIVE UP

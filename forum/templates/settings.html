@@ -1,0 +1,42 @@
+{{NOTE Edit your own bio. Rendered at (180) only; POST /settings COMEs FROM (180).
+  ,144 bio text ,143 error message ('' for none) ,142 preview: #1 renders ,144 AS PROSE above the form
+  Program variables: ,100 (the signed-in user's name, for the profile link).}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Your bio · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap wrap-narrow">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="/u/{{,100}}">{{,100}}</a> <span aria-hidden="true">›</span> <span>Bio</span></nav>
+  <div class="pagehead">
+    <h1>Your bio</h1>
+    <p class="lede">Shown on your profile. Markdown works here too.</p>
+  </div>
+{{ABSTAIN WITHOUT ,143}}
+  <div class="alert" role="alert"><p class="alert-code">{{,143}}</p><p>PLEASE CORRECT SOURCE AND RESUBNIT. Your text is still below.</p></div>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,142 IS #1}}
+  <section class="preview" aria-label="Preview">
+    <p class="preview-label">Preview <span>· this is how your bio will look</span></p>
+    <div class="prose">{{,144 AS PROSE}}</div>
+  </section>
+{{REINSTATE}}
+  <form class="composer composer-full" action="/settings" method="post">
+    <div class="field">
+      <label for="s-bio">Bio</label>
+      <textarea id="s-bio" name="bio" rows="8">{{,144}}</textarea>
+      <p class="field-hint">Up to 2 000 bytes. Leave empty to ABSTAIN FROM having one.</p>
+    </div>
+    <div class="composer-bar">
+      <button class="btn btn-go" type="submit">Save bio</button>
+      <button class="btn" type="submit" name="preview" value="1">Preview</button>
+      <a class="btn btn-quiet" href="/u/{{,100}}">Cancel</a>
+    </div>
+  </form>
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

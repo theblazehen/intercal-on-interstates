@@ -1,0 +1,73 @@
+{{NOTE User profile. Rendered at (170) only; POST /u/:name/role COMEs FROM (170).
+  ,144 user id ,143 name ,142 role (1 member, 2 moderator, 3 admin) ,141 role label ,140 joined ,139 bio
+  ,138 post count ,137 topic count ,136 PLEASEs received ,135 PLEASEs given ,134 last post time (0 = never)
+  ;133 recent posts, each: ,144 post id ,143 topic title ,142 created ,141 excerpt ,140 category name
+       ,139 category color ,138 is opening post ,137 category id
+  Program variables: :100 (own profile when ,144 IS :100), .103 admin.}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>{{,143}} · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap wrap-narrow">
+  <section class="profile">
+    <div class="face face-xl">{{,143 AS FACE}}</div>
+    <div class="profile-main">
+      <h1 class="profile-name">{{,143}} <span class="role role-{{,142}}">{{,141}}</span></h1>
+      <p class="meta">Joined <time>{{,140 AGO}}</time>{{ABSTAIN FROM ,134 IS #0}} · last posted <time>{{,134 AGO}}</time>{{REINSTATE}}</p>
+      <dl class="profile-stats">
+        <div><dt>Posts</dt><dd title="{{,138}}">{{,138 IN ROMAN}}</dd></div>
+        <div><dt>Topics</dt><dd title="{{,137}}">{{,137 IN ROMAN}}</dd></div>
+        <div><dt>PLEASEs received</dt><dd title="{{,136}}">{{,136 IN ROMAN}}</dd></div>
+        <div><dt>PLEASEs given</dt><dd title="{{,135}}">{{,135 IN ROMAN}}</dd></div>
+      </dl>
+{{ABSTAIN WITHOUT ,144 IS :100}}
+      <p><a class="btn" href="/settings">Edit your bio</a></p>
+{{REINSTATE}}
+    </div>
+  </section>
+  <section class="bio" aria-label="About">
+{{ABSTAIN WITHOUT ,139}}
+    <div class="prose">{{,139 AS PROSE}}</div>
+{{REINSTATE}}
+{{ABSTAIN FROM ,139}}
+    <p class="empty">{{,143}} has ABSTAINED FROM writing a bio.</p>
+{{REINSTATE}}
+  </section>
+{{ABSTAIN WITHOUT .103}}
+{{ABSTAIN FROM ,144 IS :100}}
+{{ABSTAIN FROM ,142 IS #3}}
+  <section class="admin-box" aria-label="Administration">
+    <h2>Administration</h2>
+{{ABSTAIN WITHOUT ,142 IS #1}}
+    <form action="/u/{{,143}}/role" method="post"><input type="hidden" name="role" value="2"><button class="btn" type="submit">Promote to moderator</button></form>
+{{REINSTATE}}
+{{ABSTAIN WITHOUT ,142 IS #2}}
+    <form action="/u/{{,143}}/role" method="post"><input type="hidden" name="role" value="1"><button class="btn" type="submit">Demote to member</button></form>
+{{REINSTATE}}
+  </section>
+{{REINSTATE}}
+{{REINSTATE}}
+{{REINSTATE}}
+  <section class="recent">
+    <h2>Recent posts</h2>
+{{ABSTAIN FROM ;133}}
+    <p class="empty">No posts yet.</p>
+{{REINSTATE}}
+    <ol class="results">
+{{DO ;133 NEXT}}
+      <li class="result">
+        <p class="result-head"><a class="result-title" href="/p/{{,144}}">{{,143}}</a> <a class="badge-cat" style="--cat: {{,139}}" href="/c/{{,137}}">{{,140}}</a></p>
+        <p class="result-excerpt">{{,141}}</p>
+        <p class="meta">{{ABSTAIN WITHOUT ,138 IS #1}}started the topic{{REINSTATE}}{{ABSTAIN FROM ,138 IS #1}}replied{{REINSTATE}} · <time>{{,142 AGO}}</time></p>
+      </li>
+{{RESUME}}
+    </ol>
+  </section>
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

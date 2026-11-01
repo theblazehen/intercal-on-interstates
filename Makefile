@@ -17,7 +17,7 @@ SQLITE_FLAGS = -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION -DSQLITE_DEFAU
 RT_OBJ = $(patsubst %.c,$(B)/obj/%.o,$(CORE_SRC) $(WEB_SRC)) $(B)/obj/vendor/sqlite/sqlite3.o
 
 .PHONY: all clean install check
-all: $(B)/ick $(B)/gross $(B)/lib/libioi.a $(B)/share/syslib.i
+all: $(B)/ick $(B)/gross $(B)/lib/libioi.a $(B)/share/syslib.i $(B)/share/floatlib.i
 
 $(B)/obj/vendor/sqlite/sqlite3.o: vendor/sqlite/sqlite3.c
 	@mkdir -p $(dir $@)
@@ -37,7 +37,7 @@ $(B)/ick: $(patsubst %.c,$(B)/obj/%.o,$(ICK_SRC))
 $(B)/gross: $(patsubst %.c,$(B)/obj/%.o,$(GROSS_SRC))
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(B)/share/syslib.i: lib/syslib.i
+$(B)/share/%.i: lib/%.i
 	@mkdir -p $(dir $@)
 	cp $< $@
 
@@ -53,7 +53,7 @@ install: all
 	install -m 755 $(B)/ick $(B)/gross $(DESTDIR)$(PREFIX)/bin/
 	install -m 644 $(B)/lib/libioi.a $(DESTDIR)$(PREFIX)/lib/ioi/
 	install -m 644 include/*.h $(DESTDIR)$(PREFIX)/include/ioi/
-	install -m 644 lib/syslib.i $(DESTDIR)$(PREFIX)/share/ioi/
+	install -m 644 lib/*.i $(DESTDIR)$(PREFIX)/share/ioi/
 
 check: all
 	@for t in tests/*/run.sh; do echo "== $$t"; sh $$t || exit 1; done

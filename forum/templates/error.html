@@ -1,0 +1,22 @@
+{{NOTE In-voice error page. Links only to 16000-origin routes, so any line may render it, each with its
+  own WITH STATUS: (404) status 404, (403) status 403, (400) status 400.
+  ,144 error number (e.g. #404) ,143 message in capitals, e.g. NO SUCH TOPIC}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>E{{,144}} {{,143}} · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap wrap-form">
+  <section class="ick-error">
+    <p class="ick-error-code" aria-hidden="true">E{{,144}}</p>
+    <h1>E{{,144}} {{,143}}.</h1>
+    <p class="ick-error-sub">PLEASE CORRECT SOURCE AND RESUBNIT</p>
+    <p class="ick-error-links"><a class="btn btn-go" href="/">Board index</a> <a class="btn" href="/latest">Latest topics</a> <a class="btn btn-quiet" href="/search">Search</a></p>
+  </section>
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

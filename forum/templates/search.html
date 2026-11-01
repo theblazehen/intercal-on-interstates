@@ -1,0 +1,56 @@
+{{NOTE Search. Rendered at (190) by GET /search. Set .104 to #3.
+  ,144 query as typed ('' when none)
+  ;143 results, each: ,144 post id ,143 topic id ,142 topic title ,141 author ,140 created ,139 excerpt
+       ,138 category name ,137 category color ,136 is opening post ,135 category id
+  ,142 total matches ,141 page ,140 pages ,139 previous page (0 = none) ,138 next page (0 = none)
+  Pagination uses GET forms so the browser URL-encodes the query.}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>{{ABSTAIN WITHOUT ,144}}{{,144}}: {{REINSTATE}}Search · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap wrap-narrow">
+  <div class="pagehead">
+    <h1>Search</h1>
+  </div>
+  <form class="search-big" action="/search" method="get" role="search">
+    <label class="vh" for="q-main">Search topics and posts</label>
+    <input id="q-main" name="q" type="search" value="{{,144}}" placeholder="Words from a title or a post">
+    <button class="btn btn-go" type="submit">Search</button>
+  </form>
+{{ABSTAIN WITHOUT ,144}}
+  <p class="meta search-count"><span title="{{,142}}">{{,142 IN ROMAN}}</span> matching posts, newest first.</p>
+{{ABSTAIN FROM ;143}}
+  <p class="empty">Nothing matches. Your search has been ABSTAINED FROM. Try fewer or different words.</p>
+{{REINSTATE}}
+  <ol class="results">
+{{DO ;143 NEXT}}
+    <li class="result">
+      <p class="result-head"><a class="result-title" href="/p/{{,144}}">{{,142}}</a> <a class="badge-cat" style="--cat: {{,137}}" href="/c/{{,135}}">{{,138}}</a></p>
+      <p class="result-excerpt">{{,139}}</p>
+      <p class="meta"><a href="/u/{{,141}}">{{,141}}</a> {{ABSTAIN WITHOUT ,136 IS #1}}started the topic{{REINSTATE}}{{ABSTAIN FROM ,136 IS #1}}replied{{REINSTATE}} · <time>{{,140 AGO}}</time></p>
+    </li>
+{{RESUME}}
+  </ol>
+{{ABSTAIN FROM ,140 IS #1}}
+  <nav class="pager" aria-label="Pages">
+{{ABSTAIN FROM ,139 IS #0}}
+    <form action="/search" method="get"><input type="hidden" name="q" value="{{,144}}"><button class="btn" type="submit" name="page" value="{{,139}}">← Newer</button></form>
+{{REINSTATE}}
+    <span class="pager-pos">Page <b title="{{,141}}">{{,141 IN ROMAN}}</b> of <span title="{{,140}}">{{,140 IN ROMAN}}</span></span>
+{{ABSTAIN FROM ,138 IS #0}}
+    <form action="/search" method="get"><input type="hidden" name="q" value="{{,144}}"><button class="btn" type="submit" name="page" value="{{,138}}">Older →</button></form>
+{{REINSTATE}}
+  </nav>
+{{REINSTATE}}
+{{REINSTATE}}
+{{ABSTAIN FROM ,144}}
+  <p class="empty">Search topic titles and post bodies. PLEASE type at least one word.</p>
+{{REINSTATE}}
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

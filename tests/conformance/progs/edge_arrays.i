@@ -1,0 +1,33 @@
+	PLEASE NOTE ONE, TWO AND THREE DIMENSIONAL ARRAYS OF BOTH KINDS,
+	DO NOTE SUBSCRIPTS FROM EXPRESSIONS, REDIMENSIONING CLEARS
+	DO ,1 <- #3
+	DO ,1 SUB #1 <- #11
+	PLEASE ,1 SUB #3 <- #33
+	DO READ OUT ,1 SUB #1 + ,1 SUB #2 + ,1 SUB #3
+	DO ;1 <- #2 BY #3
+	DO ;1 SUB #2 #3 <- #65535$#65535
+	PLEASE ;1 SUB #1 #1 <- #7
+	DO READ OUT ;1 SUB #2 #3 + ;1 SUB #1 #1 + ;1 SUB #1 #3
+	DO .1 <- #2
+	DO .2 <- #4
+	PLEASE ,2 <- .1 BY .2 BY #2
+	DO ,2 SUB .1 .2 #2 <- #242
+	DO .3 <- '#1$#1'
+	DO ,2 SUB #1 .3 #1 <- #131
+	DO READ OUT ,2 SUB #2 #4 #2 + ,2 SUB #1 #3 #1
+	PLEASE ,3 <- #5
+	DO .4 <- ',1 SUB #1' ~ #3
+	DO ,3 SUB .4 <- #9
+	DO READ OUT ,3 SUB #3
+	DO ;2 <- :1
+	DO ;2 <- #2
+	PLEASE ;2 SUB #2 <- ,1 SUB #3 $ #1
+	DO READ OUT ;2 SUB #2
+	DO ,1 <- #3
+	DO READ OUT ,1 SUB #1
+	PLEASE ,4 <- #1 BY #1 BY #1 BY #1
+	DO ,4 SUB #1 #1 #1 #1 <- #4
+	DO READ OUT ,4 SUB #1 #1 #1 #1
+	DO .5 <- ,1 SUB #3
+	PLEASE READ OUT .5
+	DO GIVE UP

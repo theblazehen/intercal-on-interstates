@@ -1,0 +1,46 @@
+{{NOTE Latest topics across all categories. Rendered at (110) by GET /latest. Set .104 to #2.
+  ;144 topic rows (see _topic_row.html), ,143 page, ,142 pages, ,141 previous page (0 = none), ,140 next page (0 = none)}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Latest · PLEASE DISCUSS</title>
+{{DO "_head.html" NEXT}}
+</head>
+<body>
+{{DO "_nav.html" NEXT}}
+<main id="main" class="wrap">
+  <div class="pagehead pagehead-row">
+    <div>
+      <h1>Latest</h1>
+      <p class="lede">Every topic, most recently active first.</p>
+    </div>
+{{ABSTAIN WITHOUT :100}}
+    <a class="btn btn-go" href="/new">New topic</a>
+{{REINSTATE}}
+  </div>
+{{ABSTAIN WITHOUT ;144}}
+  <div class="tlist-head" aria-hidden="true"><span>Topic</span><span></span><span>Replies</span><span>Views</span><span>Activity</span></div>
+  <ol class="tlist">
+{{DO ;144 NEXT}}
+{{DO "_topic_row.html" NEXT}}
+{{RESUME}}
+  </ol>
+{{REINSTATE}}
+{{ABSTAIN FROM ;144}}
+  <p class="empty">Nothing here yet. The forum has ABSTAINED FROM conversation.</p>
+{{REINSTATE}}
+{{ABSTAIN FROM ,142 IS #1}}
+  <nav class="pager" aria-label="Pages">
+{{ABSTAIN FROM ,141 IS #0}}
+    <a class="btn" rel="prev" href="/latest?page={{,141}}">← Newer</a>
+{{REINSTATE}}
+    <span class="pager-pos">Page <b title="{{,143}}">{{,143 IN ROMAN}}</b> of <span title="{{,142}}">{{,142 IN ROMAN}}</span></span>
+{{ABSTAIN FROM ,140 IS #0}}
+    <a class="btn" rel="next" href="/latest?page={{,140}}">Older →</a>
+{{REINSTATE}}
+  </nav>
+{{REINSTATE}}
+</main>
+{{DO "_foot.html" NEXT}}
+</body>
+</html>

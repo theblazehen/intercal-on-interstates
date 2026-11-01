@@ -1,0 +1,1 @@
+n={{.20}} ({{.20 IN ARABIC}}) text={{,21}} bytes={{.21 IN ARABIC}} absent={{.22 IN ARABIC}} last={{.4401 IN ARABIC}}
