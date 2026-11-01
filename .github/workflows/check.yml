@@ -1,0 +1,30 @@
+name: check
+on:
+  push:
+  pull_request:
+
+jobs:
+  # The test suites compare against C-INTERCAL 0.35 byte for byte, so they run in the pinned
+  # nix dev shell (flake.lock) rather than against whatever ick a distribution ships.
+  make-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop -c sh -c './configure && make -j"$(nproc)"'
+      - run: nix develop -c make check
+
+  # The site promised "all you need is a C compiler": build and install with nothing else.
+  plain-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./configure --prefix="$RUNNER_TEMP/ioi" && make -j"$(nproc)" && make install
+      - run: |
+          cd examples/site
+          "$RUNNER_TEMP/ioi/bin/ick" -s -b hello.i
+          "$RUNNER_TEMP/ioi/bin/gross" -p 10585 ./hello &
+          sleep 1
+          curl -sf http://localhost:10585/ | grep -q 'Hello, world!'
+          du -sh "$RUNNER_TEMP/ioi"

@@ -44,9 +44,10 @@ if $B/unit "$TMP/unit"; then ok; else bad "C unit tests"; fi
 # ---------------------------------------------------------------- first open
 # The forum's schema + seed (plaintext PASSWORD seeds get hashed) must set up
 # a fresh database well inside gross's time limit.
-if [ -f forum/schema.sql ]; then
+FORUM=apps/please-discuss
+if [ -f $FORUM/schema.sql ]; then
     F="$TMP/forum.db"
-    out=$(IOI_DATABASE=$F IOI_APP_DIR=forum $B/dbopen)
+    out=$(IOI_DATABASE=$F IOI_APP_DIR=$FORUM $B/dbopen)
     ms=${out##*ms=}
     echo "forum fresh open: $out"
     check "forum fresh open succeeds" [ -n "$ms" ]
@@ -56,7 +57,7 @@ if [ -f forum/schema.sql ]; then
     # A setup killed part-way leaves nothing behind, and the next open redoes it.
     for delay in 0.01 0.03 0.06; do
         rm -f "$F" "$F-wal" "$F-shm"
-        IOI_DATABASE=$F IOI_APP_DIR=forum $B/dbopen >/dev/null &
+        IOI_DATABASE=$F IOI_APP_DIR=$FORUM $B/dbopen >/dev/null &
         kp=$!
         sleep $delay
         kill -9 $kp 2>/dev/null
@@ -66,7 +67,7 @@ if [ -f forum/schema.sql ]; then
         if [ "$n" = "$full" ]; then
             check "complete setup has hashed passwords" [ "$(sqlite3 $F "SELECT count(*) FROM users WHERE password NOT LIKE 'pbkdf2-sha256\$%'")" = 0 ]
         fi
-        again=$(IOI_DATABASE=$F IOI_APP_DIR=forum $B/dbopen)
+        again=$(IOI_DATABASE=$F IOI_APP_DIR=$FORUM $B/dbopen)
         check "open after a killed setup completes it" [ "${again%% ms=*}" = "${out%% ms=*}" ]
     done
 fi

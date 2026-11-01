@@ -1,21 +1,48 @@
-# INTERCAL on Interstates 1.1
+# INTERCAL on Interstates
 
-*A web framework for the modern developer.* In 2013, [intercaloninterstates.org](https://www.intercaloninterstates.org/)
-announced a web framework for INTERCAL, and its 1.0 download contained one file:
-`APRIL FOOL'S! :)` ([reference/](reference/)). Version 1.1 ships the framework the site
-described, with every example on its examples page compiling unmodified, and a community forum
+A web framework for INTERCAL, the language designed in 1972 to resemble no other. It started as a
+joke: in 2013, [intercaloninterstates.org](https://www.intercaloninterstates.org/) announced it,
+with features, code examples and a download link. The download held one file:
+
+```
+$ tar xzf ioi-1.0.tar.gz && cat ioi-1.0/README.TXT
+APRIL FOOL'S! :)
+```
+
+This is version 1.1, and it works. Every example on that page compiles unchanged, and
+[PLEASE DISCUSS](apps/please-discuss/), a forum somewhere between phpBB and Discourse, is
 written in it.
 
-| Piece | What it is |
-|---|---|
-| `ick` | INTERCAL → C → native compiler. Without flags it matches C-INTERCAL 0.35 (143/143 differential tests). `-s` enables the Interstates extensions: routes via `COME FROM … WITH ROUTE`, compiled templates, `WRITE IN … WITH FIELD`, sessions, and ActiveCassette. |
-| `gross` | General READ OUT Server System, an HTTP/1.1 server on port 10585 that runs your program once per request as CGI. |
-| ActiveCassette | Numbered tables over SQLite. `'FROM DATABASE #1~#3$#4' HAVING #0 ,3` is a query; `STASH ;5 INTO DATABASE #2` is an insert; `FORGET` deletes. |
-| [`forum/`](forum/) | **PLEASE DISCUSS**, a forum somewhere between phpBB and Discourse, written in about 1,100 lines of INTERCAL. |
+[![A request refused with ICL403I YOU CAN'T GET THERE FROM HERE, from the walkthrough video](docs/img/video-still.jpg)](https://x.com/theblazehen/status/2116927478086406581)
 
-The full language and framework contract is in [SPEC.md](SPEC.md). Each component has its own
-README: [compiler](compiler/README.md), [web runtime](runtime/web/README.md),
-[gross](gross/README.md), [forum](forum/README.md), [site examples](examples/site/README.md).
+*[Watch the seven-minute walkthrough](https://x.com/theblazehen/status/2116927478086406581): one
+click on the forum, followed through an INTERCAL program.*
+
+## What a route looks like
+
+The request arriving is line 16000. A route is a `COME FROM` that waits for it. This is the
+forum's like button, unedited:
+
+```
+DO COME FROM (130) WITH ROUTE "POST /p/:id/please"
+DO .5 <- 'FROM DATABASE #5~#0' HAVING #1 :10 HAVING #2 :100 HOW MANY
+DO FORGET 'FROM DATABASE #5' HAVING #1 :10 HAVING #2 :100
+DO (3303) NEXT
+DO READ OUT #2 WITH REDIRECT "to_post.txt"
+```
+
+- **Routing is `COME FROM`.** This route comes from line 130, the statement that renders the topic
+  page, not from 16000. At run time that means a request needs a same-host `Origin` or `Referer`,
+  so cross-site request forgery protection comes with the route. At compile time, every link in
+  every template is checked against the routes it may reach:
+  `ICL401I NO ROAD LEADS TO GET /latest FROM _nav.html`.
+- **There is no `if`.** `(3303)` calls the forum's branch helper, which turns the count into 1 or 2
+  with select, XOR and mingle, then `RESUME`s that many levels: zero runs the insert, anything else
+  skips it. Every decision in `forum.i` goes through those four statements.
+- **It is really INTERCAL.** Without `-s`, `ick` matches C-INTERCAL 0.35 on 143 programs: the
+  same output, the same error text, the same exit code. The politeness check (between a fifth and
+  a third of your statements must say `PLEASE`), Roman numeral output and the random compiler
+  bug are all there.
 
 ## Install
 
@@ -27,30 +54,57 @@ make
 make install
 ```
 
-The installed footprint is about 2.4 MB, including SQLite.
-
-## First steps
+That installs `ick` (the compiler), `gross` (the General READ OUT Server System) and the runtime,
+SQLite included, in about 2.5 MB.
 
 ```sh
-ick -s -b hello.i      # -s: Interstates; -b: turn off the random compiler bug (E774)
+ick -s -b hello.i      # -s: the Interstates dialect; -b: no random compiler bug
 gross ./hello          # http://localhost:10585/
 ```
 
+The language and framework are specified in [SPEC.md](SPEC.md).
+
 ## The forum
 
+[![PLEASE DISCUSS, the board index](docs/img/index-desktop-light.webp)](apps/please-discuss/)
+
+[PLEASE DISCUSS](apps/please-discuss/) is about 1,400 lines of INTERCAL (22% `PLEASE`). It has
+categories, topics, replies with quoting, likes, editing, moderation, search and accounts, and
+every page works without JavaScript. Counts are Roman numerals.
+
 ```sh
-mise run forum         # build, compile forum/forum.i, serve on :10585
+mise run forum         # builds everything, serves http://localhost:10585
 ```
 
-The seed accounts are listed in [forum/README.md](forum/README.md).
+The seed accounts are listed in [its README](apps/please-discuss/README.md).
+
+## What's here
+
+| Path | What |
+|---|---|
+| [`compiler/`](compiler/README.md) | `ick`: INTERCAL → C → native. `-s` enables the Interstates dialect. |
+| [`runtime/`](runtime/web/README.md) | Variables, operators and templates; requests, sessions, ActiveCassette (SQLite) and prose rendering. |
+| [`gross/`](gross/README.md) | The HTTP server. Runs your program once per request, as CGI. |
+| [`apps/please-discuss/`](apps/please-discuss/) | The forum. |
+| [`examples/site/`](examples/site/README.md) | The four examples from the 2013 site, verbatim. |
+| [`reference/`](reference/) | The 2013 examples page and the original 1.0 tarball. |
 
 ## Development
 
-A nix dev shell provides the toolchain and C-INTERCAL as the conformance oracle
-(`nix develop`). `make check` runs every suite in `tests/*/run.sh`: conformance against
-C-INTERCAL, the site examples, the web runtime and gross, and the forum end to end.
+`nix develop` gives you the toolchain plus C-INTERCAL as the reference. `make check` runs every
+suite: conformance against C-INTERCAL, the 2013 examples, the web runtime and server, and the
+forum end to end (269 checks).
 
-## Licence
+## How it was made
 
-`lib/syslib.i` and `lib/floatlib.i` come from C-INTERCAL and are GPL; see
-[lib/COPYING](lib/COPYING). SQLite is public domain.
+Built by [@theblazehen](https://x.com/theblazehen) with coding agents, from the 2013 site's
+promises: a spec first, then the compiler, runtime and server in parallel, then the forum, a
+security review and a browser pass.
+
+## Credits and licence
+
+The original site and its joke belong to its unnamed authors; this project is an unaffiliated
+tribute. `lib/syslib.i` and `lib/floatlib.i` come from
+[C-INTERCAL](http://www.catb.org/~esr/intercal/). SQLite is public domain.
+
+GPL-2.0-or-later. See [LICENSE](LICENSE).

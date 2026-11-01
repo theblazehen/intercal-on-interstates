@@ -10,5 +10,5 @@ run = "nix develop -c make check"
 [tasks.forum]
 description = "Compile the PLEASE DISCUSS forum and serve it on :10585"
 depends = ["build"]
-dir = "forum"
-run = "nix develop -c sh -c '../build/ick -s -b forum.i && ../build/gross ./forum'"
+dir = "apps/please-discuss"
+run = "nix develop -c sh -c '../../build/ick -s -b forum.i && ../../build/gross ./forum'"
